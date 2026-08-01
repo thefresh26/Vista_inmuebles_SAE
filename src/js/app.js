@@ -2,7 +2,8 @@
 let currentRole = null;
 const CREDS = {
   'broker2026':   { pass:'Activos2026#$', role:'broker' },
-  'comercial2026':{ pass:'2026', role:'comercial' }
+  'comercial2026':{ pass:'2026', role:'comercial' },
+  'SAE':          { pass:'SAE123456$%', role:'comercial' }
 };
 
 document.addEventListener('DOMContentLoaded',function(){
