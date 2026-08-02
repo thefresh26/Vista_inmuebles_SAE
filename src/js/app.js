@@ -82,21 +82,38 @@ async function buscar(){
 
   try{
     const inList=folios.map(f=>`"${f.replace(/"/g,'\\"')}"`).join(',');
-    const url=`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=in.(${inList})&select=fmi,codigo_subasta,cantidad_expresion_interes`;
-    const resp=await fetch(url,{
-      headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
-    });
-    if(!resp.ok)throw new Error('HTTP '+resp.status);
-    const data=await resp.json();
 
-    const found=new Map(data.map(r=>[r.fmi,r]));
-    const noEncontrados=folios.filter(f=>!found.has(f));
+    const [propResp,interesResp]=await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=in.(${inList})&select=fmi,codigo_subasta`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+      }),
+      fetch(`${SUPABASE_URL}/rest/v1/expresiones_interes?fmi=in.(${inList})&select=fmi`,{
+        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
+      })
+    ]);
+    if(!propResp.ok)throw new Error('HTTP '+propResp.status);
+    if(!interesResp.ok)throw new Error('HTTP '+interesResp.status);
+    const data=await propResp.json();
+    const interesData=await interesResp.json();
+
+    /* Cuenta cuántas veces aparece cada FMI en expresiones_interes
+       (una fila = un cliente interesado). Se normaliza a mayúsculas para
+       que no se pierdan coincidencias por diferencias de mayúsculas/
+       minúsculas entre esta tabla e inventario_SAE (ej. "50c-..." vs "50C-..."). */
+    const conteoInteres={};
+    interesData.forEach(r=>{
+      const k=String(r.fmi).toUpperCase();
+      conteoInteres[k]=(conteoInteres[k]||0)+1;
+    });
+
+    const found=new Map(data.map(r=>[String(r.fmi).toUpperCase(),r]));
+    const noEncontrados=folios.filter(f=>!found.has(f.toUpperCase()));
 
     sb.style.display='none';
     res.style.display='block';
 
     const rows=folios.map(f=>{
-      const r=found.get(f);
+      const r=found.get(f.toUpperCase());
       if(!r){
         return `<tr class="row-empty">
           <td class="vm">${esc(f)}</td>
@@ -112,7 +129,7 @@ async function buscar(){
         <td class="vm">${esc(r.fmi)}</td>
         <td>${unidadHtml}</td>
         <td>${enlaceHtml}</td>
-        <td>${chipInteres(r.cantidad_expresion_interes)}</td>
+        <td>${chipInteres(conteoInteres[String(r.fmi).toUpperCase()]||0)}</td>
       </tr>`;
     }).join('');
 
