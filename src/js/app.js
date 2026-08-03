@@ -1,34 +1,3 @@
-/* ── AUTH ── */
-let currentRole = null;
-const CREDS = {
-  'broker2026':   { pass:'Activos2026#$', role:'broker' },
-  'comercial2026':{ pass:'2026', role:'comercial' },
-  'SAE':          { pass:'SAE123456$%', role:'comercial' }
-};
-
-document.addEventListener('DOMContentLoaded',function(){
-  document.getElementById('l-user').focus();
-  ['l-user','l-pass'].forEach(id=>{
-    document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-  });
-});
-
-function doLogin(){
-  const user = document.getElementById('l-user').value.trim();
-  const pass = document.getElementById('l-pass').value;
-  const err  = document.getElementById('l-err');
-  const c    = CREDS[user];
-  if(c && c.pass === pass){
-    currentRole = c.role;
-    document.getElementById('login-overlay').style.display = 'none';
-    document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
-  } else {
-    err.style.display = 'block';
-    document.getElementById('l-pass').value = '';
-    document.getElementById('l-pass').focus();
-  }
-}
-
 /* ── SUPABASE ── */
 /* Mismo proyecto Supabase que VISTA; se agregaron 2 columnas nuevas a
    inventario_SAE: expresion_interes (boolean) y codigo_subasta (text).
@@ -37,6 +6,77 @@ function doLogin(){
    mientras tanto se muestra Sí/No según la columna booleana actual. */
 const SUPABASE_URL='https://niemyawlnebylpidfefh.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZW15YXdsbmVieWxwaWRmZWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAxNzUsImV4cCI6MjA5NDE2NjE3NX0.sUV59NOKURYE6kPDETaM_rddX_cDRltlu7xblC-OJF4';
+
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+/* ── AUTH ── */
+/* Las contraseñas ya NO viven en este archivo. El login se valida contra
+   Supabase Auth (auth.signInWithPassword), que guarda las contraseñas
+   hasheadas del lado del servidor. Los usuarios se crean una sola vez
+   desde el panel de Supabase (Authentication > Users), asignándoles un
+   "role" en user_metadata ('broker' o 'comercial'). Como Supabase Auth
+   identifica usuarios por email, se mantiene un mapeo usuario -> email
+   para que el login siga sintiéndose igual que antes (usuario corto en
+   vez de un correo completo). */
+let currentRole = null;
+let currentUser = null;
+
+const USER_EMAILS = {
+  'broker2026':    'broker2026@sae-inmuebles.app',
+  'comercial2026': 'comercial2026@sae-inmuebles.app',
+  'SAE':           'sae@sae-inmuebles.app'
+};
+
+document.addEventListener('DOMContentLoaded',async function(){
+  document.getElementById('l-user').focus();
+  ['l-user','l-pass'].forEach(id=>{
+    document.getElementById(id).addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+  });
+
+  /* Si ya hay una sesión válida (ej. el usuario recargó la página), se
+     entra directo sin pedir credenciales de nuevo. */
+  const { data:{ session } } = await supabaseClient.auth.getSession();
+  if(session){
+    currentUser = session.user;
+    currentRole = session.user.user_metadata?.role || 'comercial';
+    document.getElementById('login-overlay').style.display = 'none';
+    document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
+  }
+});
+
+async function doLogin(){
+  const userInput = document.getElementById('l-user').value.trim();
+  const pass = document.getElementById('l-pass').value;
+  const err  = document.getElementById('l-err');
+  const btn  = document.getElementById('l-btn');
+  if(!userInput || !pass) return;
+
+  /* Permite loguearse con el usuario corto de siempre o con un email
+     directo, por si en el futuro se agregan más cuentas desde Supabase
+     sin tener que tocar este archivo. */
+  const email = USER_EMAILS[userInput] || userInput;
+
+  btn.disabled = true;
+  const btnTextoOriginal = btn.textContent;
+  btn.textContent = 'Ingresando...';
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password: pass });
+
+  btn.disabled = false;
+  btn.textContent = btnTextoOriginal;
+
+  if(error || !data.session){
+    err.style.display = 'block';
+    document.getElementById('l-pass').value = '';
+    document.getElementById('l-pass').focus();
+    return;
+  }
+
+  currentUser = data.user;
+  currentRole = data.user.user_metadata?.role || 'comercial';
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
+}
 
 document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault();buscar();}});
 
@@ -86,10 +126,28 @@ function dropdownInteres(registros){
     </div>`;
 }
 
+function cerrarTodosLosDropdowns(exceptoId){
+  document.querySelectorAll('.ei-list').forEach(el=>{
+    if(el.id !== exceptoId) el.hidden = true;
+  });
+}
+
 function toggleInteres(id){
   const el = document.getElementById(id);
-  if(el) el.hidden = !el.hidden;
+  if(!el) return;
+  const estabaOculto = el.hidden;
+  cerrarTodosLosDropdowns(id);
+  el.hidden = !estabaOculto;
 }
+
+/* Cierra cualquier desplegable abierto si el clic ocurre fuera de un
+   ".ei-dropdown" (el botón + su lista). Sin esto, los desplegables se
+   quedaban abiertos y se apilaban unos sobre otros. */
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.ei-dropdown')){
+    cerrarTodosLosDropdowns(null);
+  }
+});
 
 /* Separa la entrada de folios por coma "," o diagonal "/", limpia espacios
    y elimina duplicados/valores vacíos. */
