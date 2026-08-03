@@ -116,7 +116,8 @@ const NOMBRES_COMERCIALES = [
    ahora; si aparecen notas nuevas que se cuelen, hay que agregarlas
    aquí. */
 const NOTAS_INTERNAS = [
-  /priorizar/i,
+  /pr[i]?or[i]?zar/i, /* cubre "priorizar" y errores de tipeo como "prorizar" */
+  /^broker$/i, /* "BROKER" suelto, sin nombre pegado (queda huérfano al separar) */
   /revisar/i,
   /pr[oó]xim[oa]\s*(en\s*)?venta/i,
   /\bventa\b/i,
@@ -175,6 +176,7 @@ function limpiarNombreInteresado(texto){
     .filter(s=>!NOMBRES_COMERCIALES.some(rx=>rx.test(s)))
     .filter(s=>!NOTAS_INTERNAS.some(rx=>rx.test(s)))
     .map(s=>s.replace(/^(IC|CLIENTE|BROKER)\s+/i,'').trim())
+    .map(s=>s.replace(/\s+(BROKER|CLIENTE)$/i,'').trim())
     .filter(s=>s.length>0);
 }
 
@@ -183,8 +185,19 @@ function dropdownInteres(registros){
   const total = (registros||[]).length;
   if(total<=0) return '<span class="chip ei-no">✕ Ninguna</span>';
 
+  /* Un mismo cliente puede quedar repetido si expresó interés más de una
+     vez (varias filas en la base) o si su nombre salió más de una vez al
+     separar el texto libre. Se deduplica sin distinguir mayúsculas para
+     no mostrar el mismo nombre dos veces en la lista. */
+  const vistos = new Set();
   const nombres = (registros||[])
-    .flatMap(limpiarNombreInteresado);
+    .flatMap(limpiarNombreInteresado)
+    .filter(n=>{
+      const k = n.toUpperCase();
+      if(vistos.has(k)) return false;
+      vistos.add(k);
+      return true;
+    });
   const lista = nombres.length ? nombres : ['(sin nombre registrado)'];
 
   const id = `ei-dd-${dropdownSeq++}`;
