@@ -47,21 +47,40 @@ function esc(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 function icon(path){return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">${path}</svg>`;}
 
 /* Expresión de interés: en vez de solo mostrar la cantidad, se arma un
-   desplegable con los nombres de los clientes/oferentes interesados en
-   ese folio (columna "cliente" de expresiones_interes, una fila por
-   cliente). Sin interesados -> chip "Ninguna". */
+   desplegable con los nombres de los interesados en ese folio (columna
+   "analista" de expresiones_interes, una fila por interesado). Ese texto
+   es libre y a veces mezcla el nombre del comercial que gestionó la
+   solicitud junto con el del cliente, separados por "/". Por pedido
+   explícito se filtran los nombres de comerciales conocidos (por ahora
+   Alexandra Balza y Jeffrey/Jeff Guerrero) para que no aparezcan en la
+   lista de interesados. Sin interesados -> chip "Ninguna". */
+const NOMBRES_COMERCIALES = [/alexandra/i, /jeffrey/i, /\bjeff\b/i];
+
+function limpiarNombreInteresado(texto){
+  return String(texto)
+    .split('/')
+    .map(s=>s.trim())
+    .filter(s=>s.length>0)
+    .filter(s=>!NOMBRES_COMERCIALES.some(rx=>rx.test(s)))
+    .map(s=>s.replace(/^IC\s+/i,'').trim())
+    .filter(s=>s.length>0);
+}
+
 let dropdownSeq = 0;
-function dropdownInteres(clientes){
-  const lista = (clientes||[]).filter(c=>!nul(c));
-  const n = lista.length;
-  if(n<=0) return '<span class="chip ei-no">✕ Ninguna</span>';
+function dropdownInteres(registros){
+  const total = (registros||[]).length;
+  if(total<=0) return '<span class="chip ei-no">✕ Ninguna</span>';
+
+  const nombres = (registros||[])
+    .flatMap(limpiarNombreInteresado);
+  const lista = nombres.length ? nombres : ['(sin nombre registrado)'];
 
   const id = `ei-dd-${dropdownSeq++}`;
   const items = lista.map(c=>`<li>${esc(c)}</li>`).join('');
   return `
     <div class="ei-dropdown">
       <button type="button" class="chip ei-yes ei-toggle" onclick="toggleInteres('${id}')">
-        ✓ ${n} interesado${n>1?'s':''} <span class="ei-caret">▾</span>
+        ✓ ${total} interesado${total>1?'s':''} <span class="ei-caret">▾</span>
       </button>
       <ul id="${id}" class="ei-list" hidden>${items}</ul>
     </div>`;
