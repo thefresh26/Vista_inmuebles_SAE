@@ -77,13 +77,19 @@ async function buscar(){
   res.style.display='none';
 
   try{
-    const inList=folios.map(f=>`"${f.replace(/"/g,'\\"')}"`).join(',');
+    /* Se usa "or=(fmi.ilike.X,fmi.ilike.Y,...)" en vez de "fmi=in.(...)" para
+       que la comparación con Supabase ignore mayúsculas/minúsculas (ilike es
+       case-insensitive). Con "in." la comparación es exacta y un folio como
+       "50c-786813" no encontraba su fila real "50C-786813". */
+    const orFilter=folios
+      .map(f=>`fmi.ilike.${encodeURIComponent(f.replace(/[,()]/g,''))}`)
+      .join(',');
 
     const [propResp,interesResp]=await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=in.(${inList})&select=fmi,codigo_subasta,enlace_inmueble`,{
+      fetch(`${SUPABASE_URL}/rest/v1/inventario_SAE?or=(${orFilter})&select=fmi,codigo_subasta,enlace_inmueble`,{
         headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
       }),
-      fetch(`${SUPABASE_URL}/rest/v1/expresiones_interes?fmi=in.(${inList})&select=fmi`,{
+      fetch(`${SUPABASE_URL}/rest/v1/expresiones_interes?or=(${orFilter})&select=fmi`,{
         headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
       })
     ]);
