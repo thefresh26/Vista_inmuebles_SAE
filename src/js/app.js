@@ -38,10 +38,6 @@ function doLogin(){
 const SUPABASE_URL='https://niemyawlnebylpidfefh.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZW15YXdsbmVieWxwaWRmZWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAxNzUsImV4cCI6MjA5NDE2NjE3NX0.sUV59NOKURYE6kPDETaM_rddX_cDRltlu7xblC-OJF4';
 
-/* Enlace base al inmueble mientras se define un link específico por
-   propiedad (pendiente de acceso a la fuente original del listado). */
-const ENLACE_INMUEBLE_BASE='https://www.activosporcolombia.com/es/v2/buscar?limit=18&page=1&sort_by=date_desc';
-
 document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault();buscar();}});
 
 function nul(v){return v===null||v===undefined||v==='';}
@@ -84,7 +80,7 @@ async function buscar(){
     const inList=folios.map(f=>`"${f.replace(/"/g,'\\"')}"`).join(',');
 
     const [propResp,interesResp]=await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=in.(${inList})&select=fmi,codigo_subasta`,{
+      fetch(`${SUPABASE_URL}/rest/v1/inventario_SAE?fmi=in.(${inList})&select=fmi,codigo_subasta,enlace_inmueble`,{
         headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
       }),
       fetch(`${SUPABASE_URL}/rest/v1/expresiones_interes?fmi=in.(${inList})&select=fmi`,{
@@ -124,7 +120,9 @@ async function buscar(){
       const unidadHtml=esUnidad
         ?`<span class="chip cb">${esc(r.codigo_subasta)}</span>`
         :'<span class="null">No aplica</span>';
-      const enlaceHtml=`<a class="map-link" href="${ENLACE_INMUEBLE_BASE}" target="_blank">${icon('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>')} Ver inmueble</a>`;
+      const enlaceHtml=nul(r.enlace_inmueble)
+        ?'<span class="null">No publicado</span>'
+        :`<a class="map-link" href="${esc(r.enlace_inmueble)}" target="_blank">${icon('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>')} Ver inmueble</a>`;
       return `<tr>
         <td class="vm">${esc(r.fmi)}</td>
         <td>${unidadHtml}</td>
