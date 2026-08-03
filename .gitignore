@@ -4,3 +4,7 @@ node_modules/
 __pycache__/
 backend/node_modules/
 investigar_polybid.py
+
+# Clave service_role de Supabase (acceso total, NUNCA debe subirse a git)
+supabase_service_role.key
+.env
