@@ -142,7 +142,7 @@ async function buscar(){
       <div class="tc-left">
         <div class="tc-label">Resultado de la consulta</div>
         <div class="fmi-num" style="font-size:16px">${folios.length} folio${folios.length>1?'s':''} consultado${folios.length>1?'s':''}</div>
-        <div class="tc-sub">${data.length} encontrado${data.length!==1?'s':''}${noEncontrados.length?` &nbsp;·&nbsp; ${noEncontrados.length} sin resultado`:''}</div>
+        <div class="tc-sub">${found.size} encontrado${found.size!==1?'s':''}${noEncontrados.length?` &nbsp;·&nbsp; ${noEncontrados.length} sin resultado`:''}</div>
       </div>
     </div>
     <div class="sec">
