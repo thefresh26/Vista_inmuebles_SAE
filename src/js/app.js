@@ -46,13 +46,30 @@ function esc(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 
 function icon(path){return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">${path}</svg>`;}
 
-/* Expresión de interés: cantidad de clientes/oferentes interesados,
-   según la columna cantidad_expresion_interes (fuente: hoja
-   SEMAFORO_ANALISTAS del inventario). 0 = sin expresiones de interés. */
-function chipInteres(cantidad){
-  const n = parseInt(cantidad,10) || 0;
+/* Expresión de interés: en vez de solo mostrar la cantidad, se arma un
+   desplegable con los nombres de los clientes/oferentes interesados en
+   ese folio (columna "cliente" de expresiones_interes, una fila por
+   cliente). Sin interesados -> chip "Ninguna". */
+let dropdownSeq = 0;
+function dropdownInteres(clientes){
+  const lista = (clientes||[]).filter(c=>!nul(c));
+  const n = lista.length;
   if(n<=0) return '<span class="chip ei-no">✕ Ninguna</span>';
-  return `<span class="chip ei-yes">✓ ${n} expresión${n>1?'es':''} de interés</span>`;
+
+  const id = `ei-dd-${dropdownSeq++}`;
+  const items = lista.map(c=>`<li>${esc(c)}</li>`).join('');
+  return `
+    <div class="ei-dropdown">
+      <button type="button" class="chip ei-yes ei-toggle" onclick="toggleInteres('${id}')">
+        ✓ ${n} interesado${n>1?'s':''} <span class="ei-caret">▾</span>
+      </button>
+      <ul id="${id}" class="ei-list" hidden>${items}</ul>
+    </div>`;
+}
+
+function toggleInteres(id){
+  const el = document.getElementById(id);
+  if(el) el.hidden = !el.hidden;
 }
 
 /* Separa la entrada de folios por coma "," o diagonal "/", limpia espacios
@@ -89,7 +106,7 @@ async function buscar(){
       fetch(`${SUPABASE_URL}/rest/v1/inventario_SAE?or=(${orFilter})&select=fmi,codigo_subasta,enlace_inmueble`,{
         headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
       }),
-      fetch(`${SUPABASE_URL}/rest/v1/expresiones_interes?or=(${orFilter})&select=fmi`,{
+      fetch(`${SUPABASE_URL}/rest/v1/expresiones_interes?or=(${orFilter})&select=fmi,analista`,{
         headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
       })
     ]);
@@ -98,14 +115,15 @@ async function buscar(){
     const data=await propResp.json();
     const interesData=await interesResp.json();
 
-    /* Cuenta cuántas veces aparece cada FMI en expresiones_interes
-       (una fila = un cliente interesado). Se normaliza a mayúsculas para
-       que no se pierdan coincidencias por diferencias de mayúsculas/
-       minúsculas entre esta tabla e inventario_SAE (ej. "50c-..." vs "50C-..."). */
-    const conteoInteres={};
+    /* Agrupa los clientes interesados por FMI (una fila = un cliente).
+       Se normaliza a mayúsculas para que no se pierdan coincidencias por
+       diferencias de mayúsculas/minúsculas entre esta tabla e
+       inventario_SAE (ej. "50c-..." vs "50C-..."). */
+    const clientesPorFolio={};
     interesData.forEach(r=>{
       const k=String(r.fmi).toUpperCase();
-      conteoInteres[k]=(conteoInteres[k]||0)+1;
+      if(!clientesPorFolio[k]) clientesPorFolio[k]=[];
+      if(!nul(r.analista)) clientesPorFolio[k].push(r.analista);
     });
 
     const found=new Map(data.map(r=>[String(r.fmi).toUpperCase(),r]));
@@ -133,7 +151,7 @@ async function buscar(){
         <td class="vm">${esc(r.fmi)}</td>
         <td>${unidadHtml}</td>
         <td>${enlaceHtml}</td>
-        <td>${chipInteres(conteoInteres[String(r.fmi).toUpperCase()]||0)}</td>
+        <td>${dropdownInteres(clientesPorFolio[String(r.fmi).toUpperCase()]||[])}</td>
       </tr>`;
     }).join('');
 
