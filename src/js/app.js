@@ -86,153 +86,18 @@ function esc(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').repl
 
 function icon(path){return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">${path}</svg>`;}
 
-/* Expresión de interés: en vez de solo mostrar la cantidad, se arma un
-   desplegable con los nombres de los interesados en ese folio (columna
-   "analista" de expresiones_interes, una fila por interesado). Ese texto
-   es libre y a veces mezcla el nombre del comercial que gestionó la
-   solicitud junto con el del cliente, separados por "/" o por un guion.
-   Por pedido explícito se filtran los nombres de comerciales conocidos
-   (Alexandra Balza, Jeffrey/Jeff Guerrero, Steven Valencia, David
-   Buitrago, Yicela Caro) para que no aparezcan en la lista de
-   interesados. El resto de nombres que aparecen (brokers/oferentes
-   externos, ej. Nova, Fabián Galvis, Ernesto Arteaga, Edwin Jiménez,
-   etc.) sí son personas reales de interés y se muestran normalmente.
-   Sin interesados -> chip "Ninguna". */
-const NOMBRES_COMERCIALES = [
-  /alexandra/i,
-  /jeffrey/i,
-  /\bjeff\b/i,
-  /steven\s*valencia/i,
-  /david\s*buitrago/i,
-  /yicela\s*caro/i
-];
-
-/* El texto libre de "analista" también mezcla notas internas del equipo
-   comercial junto con el nombre del cliente (ej: "... / PROXIMO VENTA",
-   "... / PRIORIZAR", "... / REVISAR CUAL VAN A COMPRAR", "... / VENTA",
-   "... / SIN DEUDA", "... / LO TIENE LA ANT"). Se filtran esos
-   fragmentos para que solo queden nombres. Como es texto libre y en
-   constante crecimiento, esta lista cubre los patrones vistos hasta
-   ahora; si aparecen notas nuevas que se cuelen, hay que agregarlas
-   aquí. */
-const NOTAS_INTERNAS = [
-  /pr[i]?or[i]?zar/i, /* cubre "priorizar" y errores de tipeo como "prorizar" */
-  /^broker$/i, /* "BROKER" suelto, sin nombre pegado (queda huérfano al separar) */
-  /revisar/i,
-  /pr[oó]xim[oa]\s*(en\s*)?venta/i,
-  /\bventa\b/i,
-  /viabilidad/i,
-  /utilizar/i,
-  /dinero de subasta/i,
-  /perdio/i,
-  /interes en compra/i,
-  /ya tiene/i,
-  /otras expresiones/i,
-  /solo falta/i,
-  /llamar/i,
-  /urgente/i,
-  /publicad[oa]/i,
-  /sin deuda/i,
-  /lo tiene la ant/i,
-  /debe elegir/i,
-  /entra al mail/i,
-  /^cliente de privado$/i,
-  /^cliente$/i,
-  /representa/i,
-  /presenta/i,
-  /solicita/i,
-  /arrendatario/i,
-  /remitid[oa]/i,
-  /\bremite\b/i,
-  /\bmanda\b/i,
-  /referid[oa]/i,
-  /parece/i,
-  /decide/i,
-  /\belige\b/i,
-  /quiere/i,
-  /compr[ao]r?\b/i,
-  /\bmail\b/i,
-  /ocupantes/i,
-  /\bfolios\b/i
-];
-
-/* Además de las notas conocidas de arriba, cualquier fragmento con más
-   de 5 palabras se trata como comentario/oración (no como nombre) y se
-   descarta directamente, aunque a veces traiga un nombre real mezclado
-   (ej: "Gustavo Hernandez lo representa Grupo Brand"). Es una decisión
-   explícita: se prefiere perder algún nombre suelto en un caso raro
-   antes que mostrar texto de comentario en la lista de interesados. */
-const MAX_PALABRAS_NOMBRE = 5;
-
-function limpiarNombreInteresado(texto){
-  return String(texto)
-    /* separa por "/" y también por guiones rodeados de espacios (" - " o
-       " -- "), que es como suelen separar nombre y nota cuando no hay
-       diagonal (ej: "STEVEN VALENCIA HERRERA -priorizar"). */
-    .split(/\/|\s-{1,2}\s?|\s?-{1,2}\s/)
-    .map(s=>s.trim())
-    .filter(s=>s.length>0)
-    .filter(s=>s.split(/\s+/).length<=MAX_PALABRAS_NOMBRE)
-    .filter(s=>!NOMBRES_COMERCIALES.some(rx=>rx.test(s)))
-    .filter(s=>!NOTAS_INTERNAS.some(rx=>rx.test(s)))
-    .map(s=>s.replace(/^(IC|CLIENTE|BROKER)\s+/i,'').trim())
-    .map(s=>s.replace(/\s+(BROKER|CLIENTE)$/i,'').trim())
-    .filter(s=>s.length>0);
-}
-
-let dropdownSeq = 0;
+/* Expresión de interés: se muestra solo la cantidad de interesados (dato
+   exacto tomado de la base de datos), sin desplegable de nombres. El
+   texto libre de origen (columna "analista" de expresiones_interes)
+   mezcla nombres de clientes, nombres de comerciales/brokers, notas
+   internas y errores de tipeo de forma muy inconsistente; mostrarlo
+   generaba confusión en vez de ayudar, así que se decidió dejar solo el
+   número. Sin interesados -> chip "Ninguna". */
 function dropdownInteres(registros){
   const total = (registros||[]).length;
   if(total<=0) return '<span class="chip ei-no">✕ Ninguna</span>';
-
-  /* Un mismo cliente puede quedar repetido si expresó interés más de una
-     vez (varias filas en la base) o si su nombre salió más de una vez al
-     separar el texto libre. Se deduplica sin distinguir mayúsculas para
-     no mostrar el mismo nombre dos veces en la lista. */
-  const vistos = new Set();
-  const nombres = (registros||[])
-    .flatMap(limpiarNombreInteresado)
-    .filter(n=>{
-      const k = n.toUpperCase();
-      if(vistos.has(k)) return false;
-      vistos.add(k);
-      return true;
-    });
-  const lista = nombres.length ? nombres : ['(sin nombre registrado)'];
-
-  const id = `ei-dd-${dropdownSeq++}`;
-  const items = lista.map(c=>`<li>${esc(c)}</li>`).join('');
-  return `
-    <div class="ei-dropdown">
-      <button type="button" class="chip ei-yes ei-toggle" onclick="toggleInteres('${id}')">
-        ✓ ${total} interesado${total>1?'s':''} <span class="ei-caret">▾</span>
-      </button>
-      <ul id="${id}" class="ei-list" hidden>${items}</ul>
-    </div>`;
+  return `<span class="chip ei-yes">✓ ${total} interesado${total>1?'s':''}</span>`;
 }
-
-function cerrarTodosLosDropdowns(exceptoId){
-  document.querySelectorAll('.ei-list').forEach(el=>{
-    if(el.id !== exceptoId) el.hidden = true;
-  });
-}
-
-function toggleInteres(id){
-  const el = document.getElementById(id);
-  if(!el) return;
-  const estabaOculto = el.hidden;
-  cerrarTodosLosDropdowns(id);
-  el.hidden = !estabaOculto;
-}
-
-/* Cierra cualquier desplegable abierto si el clic ocurre fuera de un
-   ".ei-dropdown" (el botón + su lista). Sin esto, los desplegables se
-   quedaban abiertos y se apilaban unos sobre otros. */
-document.addEventListener('click',function(e){
-  if(!e.target.closest('.ei-dropdown')){
-    cerrarTodosLosDropdowns(null);
-  }
-});
 
 /* Separa la entrada de folios por coma "," o diagonal "/", limpia espacios
    y elimina duplicados/valores vacíos. */
