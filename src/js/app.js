@@ -90,19 +90,91 @@ function icon(path){return `<svg width="14" height="14" viewBox="0 0 24 24" fill
    desplegable con los nombres de los interesados en ese folio (columna
    "analista" de expresiones_interes, una fila por interesado). Ese texto
    es libre y a veces mezcla el nombre del comercial que gestionó la
-   solicitud junto con el del cliente, separados por "/". Por pedido
-   explícito se filtran los nombres de comerciales conocidos (por ahora
-   Alexandra Balza y Jeffrey/Jeff Guerrero) para que no aparezcan en la
-   lista de interesados. Sin interesados -> chip "Ninguna". */
-const NOMBRES_COMERCIALES = [/alexandra/i, /jeffrey/i, /\bjeff\b/i];
+   solicitud junto con el del cliente, separados por "/" o por un guion.
+   Por pedido explícito se filtran los nombres de comerciales conocidos
+   (Alexandra Balza, Jeffrey/Jeff Guerrero, Steven Valencia, David
+   Buitrago, Yicela Caro) para que no aparezcan en la lista de
+   interesados. El resto de nombres que aparecen (brokers/oferentes
+   externos, ej. Nova, Fabián Galvis, Ernesto Arteaga, Edwin Jiménez,
+   etc.) sí son personas reales de interés y se muestran normalmente.
+   Sin interesados -> chip "Ninguna". */
+const NOMBRES_COMERCIALES = [
+  /alexandra/i,
+  /jeffrey/i,
+  /\bjeff\b/i,
+  /steven\s*valencia/i,
+  /david\s*buitrago/i,
+  /yicela\s*caro/i
+];
+
+/* El texto libre de "analista" también mezcla notas internas del equipo
+   comercial junto con el nombre del cliente (ej: "... / PROXIMO VENTA",
+   "... / PRIORIZAR", "... / REVISAR CUAL VAN A COMPRAR", "... / VENTA",
+   "... / SIN DEUDA", "... / LO TIENE LA ANT"). Se filtran esos
+   fragmentos para que solo queden nombres. Como es texto libre y en
+   constante crecimiento, esta lista cubre los patrones vistos hasta
+   ahora; si aparecen notas nuevas que se cuelen, hay que agregarlas
+   aquí. */
+const NOTAS_INTERNAS = [
+  /priorizar/i,
+  /revisar/i,
+  /pr[oó]xim[oa]\s*(en\s*)?venta/i,
+  /\bventa\b/i,
+  /viabilidad/i,
+  /utilizar/i,
+  /dinero de subasta/i,
+  /perdio/i,
+  /interes en compra/i,
+  /ya tiene/i,
+  /otras expresiones/i,
+  /solo falta/i,
+  /llamar/i,
+  /urgente/i,
+  /publicad[oa]/i,
+  /sin deuda/i,
+  /lo tiene la ant/i,
+  /debe elegir/i,
+  /entra al mail/i,
+  /^cliente de privado$/i,
+  /^cliente$/i,
+  /representa/i,
+  /presenta/i,
+  /solicita/i,
+  /arrendatario/i,
+  /remitid[oa]/i,
+  /\bremite\b/i,
+  /\bmanda\b/i,
+  /referid[oa]/i,
+  /parece/i,
+  /decide/i,
+  /\belige\b/i,
+  /quiere/i,
+  /compr[ao]r?\b/i,
+  /\bmail\b/i,
+  /ocupantes/i,
+  /\bfolios\b/i
+];
+
+/* Además de las notas conocidas de arriba, cualquier fragmento con más
+   de 5 palabras se trata como comentario/oración (no como nombre) y se
+   descarta directamente, aunque a veces traiga un nombre real mezclado
+   (ej: "Gustavo Hernandez lo representa Grupo Brand"). Es una decisión
+   explícita: se prefiere perder algún nombre suelto en un caso raro
+   antes que mostrar texto de comentario en la lista de interesados. */
+const MAX_PALABRAS_NOMBRE = 5;
 
 function limpiarNombreInteresado(texto){
   return String(texto)
-    .split('/')
+    /* separa por "/" y también por guiones rodeados de espacios (" - " o
+       " -- "), que es como suelen separar nombre y nota cuando no hay
+       diagonal (ej: "STEVEN VALENCIA HERRERA -priorizar"). */
+    .split(/\/|\s-{1,2}\s?|\s?-{1,2}\s/)
     .map(s=>s.trim())
     .filter(s=>s.length>0)
+    .filter(s=>s.split(/\s+/).length<=MAX_PALABRAS_NOMBRE)
     .filter(s=>!NOMBRES_COMERCIALES.some(rx=>rx.test(s)))
-    .map(s=>s.replace(/^IC\s+/i,'').trim())
+    .filter(s=>!NOTAS_INTERNAS.some(rx=>rx.test(s)))
+    .map(s=>s.replace(/^(IC|CLIENTE|BROKER)\s+/i,'').trim())
     .filter(s=>s.length>0);
 }
 
