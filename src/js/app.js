@@ -49,7 +49,7 @@ document.addEventListener('DOMContentLoaded',async function(){
    Si el usuario no interactúa con la página durante MINUTOS_INACTIVIDAD,
    se cierra la sesión automáticamente y se recarga la página. Cualquier
    click, tecla, movimiento de mouse o scroll reinicia el contador. */
-const MINUTOS_INACTIVIDAD = 15;
+const MINUTOS_INACTIVIDAD = 10;
 let temporizadorInactividad = null;
 
 function iniciarControlInactividad(){
