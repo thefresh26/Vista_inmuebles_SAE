@@ -41,8 +41,48 @@ document.addEventListener('DOMContentLoaded',async function(){
     currentRole = session.user.user_metadata?.role || 'comercial';
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
+    iniciarControlInactividad();
   }
 });
+
+/* ── CIERRE DE SESIÓN AUTOMÁTICO POR INACTIVIDAD ──
+   Si el usuario no interactúa con la página durante MINUTOS_INACTIVIDAD,
+   se cierra la sesión automáticamente y se recarga la página. Cualquier
+   click, tecla, movimiento de mouse o scroll reinicia el contador. */
+const MINUTOS_INACTIVIDAD = 15;
+let temporizadorInactividad = null;
+
+function iniciarControlInactividad(){
+  ['click','keydown','mousemove','scroll','touchstart'].forEach(ev=>{
+    document.addEventListener(ev, reiniciarTemporizadorInactividad, {passive:true});
+  });
+  reiniciarTemporizadorInactividad();
+}
+
+function reiniciarTemporizadorInactividad(){
+  if(temporizadorInactividad) clearTimeout(temporizadorInactividad);
+  temporizadorInactividad = setTimeout(cerrarSesionPorInactividad, MINUTOS_INACTIVIDAD * 60 * 1000);
+}
+
+async function cerrarSesionPorInactividad(){
+  await registrarLog('logout_inactividad', `Sesión cerrada tras ${MINUTOS_INACTIVIDAD} min de inactividad`);
+  await supabaseClient.auth.signOut();
+  location.reload();
+}
+
+/* ── TRAZABILIDAD ──
+   Registra eventos clave (login, búsquedas, logout) en la tabla
+   logs_acceso. Si falla (ej. sin conexión), no interrumpe el uso normal
+   de la app: la trazabilidad es un "mejor esfuerzo", no un bloqueo. */
+async function registrarLog(accion, detalle){
+  try{
+    await supabaseClient.from('logs_acceso').insert({
+      usuario_email: currentUser?.email || null,
+      accion,
+      detalle: detalle || null
+    });
+  }catch(e){ /* no bloquea la UI si falla el log */ }
+}
 
 async function doLogin(){
   const userInput = document.getElementById('l-user').value.trim();
@@ -76,6 +116,8 @@ async function doLogin(){
   currentRole = data.user.user_metadata?.role || 'comercial';
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
+  registrarLog('login', null);
+  iniciarControlInactividad();
 }
 
 document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault();buscar();}});
@@ -93,11 +135,15 @@ function icon(path){return `<svg width="14" height="14" viewBox="0 0 24 24" fill
    internas y errores de tipeo de forma muy inconsistente; mostrarlo
    generaba confusión en vez de ayudar, así que se decidió dejar solo el
    número. Sin interesados -> chip "Ninguna". */
-function dropdownInteres(registros){
-  const total = (registros||[]).length;
+function dropdownInteres(total){
+  total = total||0;
   if(total<=0) return '<span class="chip ei-no">✕ Ninguna</span>';
   return `<span class="chip ei-yes">✓ ${total} interesado${total>1?'s':''}</span>`;
 }
+
+/* Uniformidad de datos: el FMI siempre se muestra en mayúsculas y sin
+   espacios extra, sin importar cómo esté cargado en la base. */
+function fmtFmi(v){ return nul(v) ? '—' : String(v).trim().toUpperCase(); }
 
 /* Separa la entrada de folios por coma "," o diagonal "/", limpia espacios
    y elimina duplicados/valores vacíos. */
@@ -121,40 +167,20 @@ async function buscar(){
   res.style.display='none';
 
   try{
-    /* Se usa "or=(fmi.ilike.X,fmi.ilike.Y,...)" en vez de "fmi=in.(...)" para
-       que la comparación con Supabase ignore mayúsculas/minúsculas (ilike es
-       case-insensitive). Con "in." la comparación es exacta y un folio como
-       "50c-786813" no encontraba su fila real "50C-786813". */
-    const orFilter=folios
-      .map(f=>`fmi.ilike.${encodeURIComponent(f.replace(/[,()]/g,''))}`)
-      .join(',');
+    /* La consulta real (join entre inventario_SAE y expresiones_interes,
+       nombres de columnas, filtros ilike, etc.) ya NO vive en este archivo:
+       se movió a la función buscar_folios(text[]) del lado de Supabase
+       (ver endurecer_sae.sql). El navegador solo envía la lista de folios
+       y recibe de vuelta exactamente los campos necesarios para mostrar —
+       nada de estructura interna de la base de datos queda visible en el
+       Network tab del navegador. */
+    const { data, error } = await supabaseClient.rpc('buscar_folios', { p_folios: folios });
+    if(error) throw error;
 
-    const [propResp,interesResp]=await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/inventario_SAE?or=(${orFilter})&select=fmi,codigo_subasta,enlace_inmueble`,{
-        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
-      }),
-      fetch(`${SUPABASE_URL}/rest/v1/expresiones_interes?or=(${orFilter})&select=fmi,analista`,{
-        headers:{'apikey':SUPABASE_KEY,'Authorization':`Bearer ${SUPABASE_KEY}`}
-      })
-    ]);
-    if(!propResp.ok)throw new Error('HTTP '+propResp.status);
-    if(!interesResp.ok)throw new Error('HTTP '+interesResp.status);
-    const data=await propResp.json();
-    const interesData=await interesResp.json();
-
-    /* Agrupa los clientes interesados por FMI (una fila = un cliente).
-       Se normaliza a mayúsculas para que no se pierdan coincidencias por
-       diferencias de mayúsculas/minúsculas entre esta tabla e
-       inventario_SAE (ej. "50c-..." vs "50C-..."). */
-    const clientesPorFolio={};
-    interesData.forEach(r=>{
-      const k=String(r.fmi).toUpperCase();
-      if(!clientesPorFolio[k]) clientesPorFolio[k]=[];
-      if(!nul(r.analista)) clientesPorFolio[k].push(r.analista);
-    });
-
-    const found=new Map(data.map(r=>[String(r.fmi).toUpperCase(),r]));
+    const found=new Map((data||[]).map(r=>[String(r.fmi).toUpperCase(),r]));
     const noEncontrados=folios.filter(f=>!found.has(f.toUpperCase()));
+
+    registrarLog('busqueda', folios.join(', '));
 
     sb.style.display='none';
     res.style.display='block';
@@ -169,16 +195,16 @@ async function buscar(){
       }
       const esUnidad=!nul(r.codigo_subasta);
       const unidadHtml=esUnidad
-        ?`<span class="chip cb">${esc(r.codigo_subasta)}</span>`
+        ?`<span class="chip cb">${esc(String(r.codigo_subasta).trim().toUpperCase())}</span>`
         :'<span class="null">No aplica</span>';
       const enlaceHtml=nul(r.enlace_inmueble)
         ?'<span class="null">No publicado</span>'
         :`<a class="map-link" href="${esc(r.enlace_inmueble)}" target="_blank">${icon('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>')} Ver inmueble</a>`;
       return `<tr>
-        <td class="vm">${esc(r.fmi)}</td>
+        <td class="vm">${esc(fmtFmi(r.fmi))}</td>
         <td>${unidadHtml}</td>
         <td>${enlaceHtml}</td>
-        <td>${dropdownInteres(clientesPorFolio[String(r.fmi).toUpperCase()]||[])}</td>
+        <td>${dropdownInteres(r.interesados)}</td>
       </tr>`;
     }).join('');
 
