@@ -1,12 +1,5 @@
 <svg width="220" height="120" viewBox="0 0 220 120" xmlns="http://www.w3.org/2000/svg">
-  <defs>
-    <linearGradient id="saeGrad" x1="0" y1="0" x2="210" y2="90" gradientUnits="userSpaceOnUse">
-      <stop offset="0" stop-color="#FF1F7A"/>
-      <stop offset="0.55" stop-color="#B21E7A"/>
-      <stop offset="1" stop-color="#4B1560"/>
-    </linearGradient>
-  </defs>
-  <g fill="url(#saeGrad)">
+  <g fill="#D4145A">
     <path d="M76 33
       C58 20, 30 20, 16 34
       C4 46, 10 56, 26 60
