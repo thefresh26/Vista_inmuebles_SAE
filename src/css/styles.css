@@ -28,6 +28,10 @@ body{background:var(--off);color:var(--text);font-family:var(--body);min-height:
 .hero h1 span{color:#ffd8ea;}
 .hero p{font-size:13px;color:rgba(255,255,255,.75);margin-bottom:28px;}
 
+/* BOTON CERRAR SESION */
+.logout-btn{position:absolute;top:20px;right:32px;z-index:2;background:rgba(255,255,255,.14);border:1px solid rgba(255,255,255,.4);color:var(--white);font-family:var(--sans);font-size:12px;font-weight:600;padding:7px 14px;border-radius:20px;cursor:pointer;transition:background .15s;}
+.logout-btn:hover{background:rgba(255,255,255,.26);}
+
 /* SEARCH BOX */
 .search-card{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:14px;padding:20px 24px;backdrop-filter:blur(8px);}
 .search-label{font-family:var(--sans);font-size:10px;font-weight:700;color:rgba(255,255,255,.65);letter-spacing:.12em;text-transform:uppercase;margin-bottom:10px;display:block;}

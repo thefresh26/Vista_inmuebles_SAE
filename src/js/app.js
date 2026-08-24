@@ -41,6 +41,7 @@ document.addEventListener('DOMContentLoaded',async function(){
     currentRole = session.user.user_metadata?.role || 'comercial';
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
+    document.getElementById('logout-btn').style.display = 'inline-block';
     iniciarControlInactividad();
   }
 });
@@ -66,6 +67,14 @@ function reiniciarTemporizadorInactividad(){
 
 async function cerrarSesionPorInactividad(){
   await registrarLog('logout_inactividad', `Sesión cerrada tras ${MINUTOS_INACTIVIDAD} min de inactividad`);
+  await supabaseClient.auth.signOut();
+  location.reload();
+}
+
+/* ── CIERRE DE SESIÓN MANUAL ──
+   Disparado por el botón "Cerrar sesión" del encabezado. */
+async function cerrarSesionManual(){
+  await registrarLog('logout', null);
   await supabaseClient.auth.signOut();
   location.reload();
 }
@@ -116,6 +125,7 @@ async function doLogin(){
   currentRole = data.user.user_metadata?.role || 'comercial';
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
+  document.getElementById('logout-btn').style.display = 'inline-block';
   registrarLog('login', null);
   iniciarControlInactividad();
 }
