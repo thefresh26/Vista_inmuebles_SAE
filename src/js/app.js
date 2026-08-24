@@ -1,9 +1,9 @@
 /* ── SUPABASE ── */
 /* Mismo proyecto Supabase que VISTA; se agregaron 2 columnas nuevas a
    inventario_SAE: expresion_interes (boolean) y codigo_subasta (text).
-   NOTA: la cantidad de expresiones de interés por folio (no solo Sí/No)
-   está pendiente de un archivo fuente con el detalle por interesado;
-   mientras tanto se muestra Sí/No según la columna booleana actual. */
+   La cantidad de interesados por folio se obtiene ya resuelta desde la
+   función RPC buscar_folios (columna `interesados`) y se muestra
+   directamente (ver dropdownInteres más abajo). */
 const SUPABASE_URL='https://niemyawlnebylpidfefh.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pZW15YXdsbmVieWxwaWRmZWZoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg1OTAxNzUsImV4cCI6MjA5NDE2NjE3NX0.sUV59NOKURYE6kPDETaM_rddX_cDRltlu7xblC-OJF4';
 
@@ -123,7 +123,6 @@ async function doLogin(){
 document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault();buscar();}});
 
 function nul(v){return v===null||v===undefined||v==='';}
-function fmt(v){if(nul(v))return '<span class="null">—</span>';return String(v);}
 function esc(v){return String(v).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function icon(path){return `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">${path}</svg>`;}
@@ -157,11 +156,19 @@ async function buscar(){
   const raw=document.getElementById('qi').value.trim();
   const sb=document.getElementById('sb');
   const res=document.getElementById('result');
+  const btn=document.querySelector('.sbtn');
   if(!raw)return;
+
+  /* Evita disparar varias búsquedas a la vez si el usuario hace clic o
+     presiona Enter repetidamente mientras la consulta anterior sigue en
+     curso (el botón se deshabilita hasta que termine, igual que en el
+     login). */
+  if(btn && btn.disabled) return;
 
   const folios=parseFolios(raw);
   if(folios.length===0)return;
 
+  if(btn) btn.disabled = true;
   sb.style.display='block';sb.className='loading';
   sb.textContent=`⏳ Consultando ${folios.length} folio${folios.length>1?'s':''}...`;
   res.style.display='none';
@@ -235,5 +242,7 @@ async function buscar(){
   }catch(e){
     sb.style.display='block';sb.className='error';
     sb.textContent='⚠ Error al consultar la base de datos. Verifica tu conexión e intenta de nuevo.';
+  }finally{
+    if(btn) btn.disabled = false;
   }
 }
