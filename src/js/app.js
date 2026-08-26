@@ -14,11 +14,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
    Supabase Auth (auth.signInWithPassword), que guarda las contraseñas
    hasheadas del lado del servidor. Los usuarios se crean una sola vez
    desde el panel de Supabase (Authentication > Users), asignándoles un
-   "role" en user_metadata ('comercial', 'SAE' o 'administrador'). Como Supabase Auth
+   "role" en user_metadata ('admin', 'comercial', 'comunicaciones', 'juridico'
+   o 'sin_acceso'). Como Supabase Auth
    identifica usuarios por email, se mantiene un mapeo usuario -> email
    para que el login siga sintiéndose igual que antes (usuario corto en
-   vez de un correo completo). Roles vigentes: 'administrador', 'comercial'
-   y 'SAE'. */
+   vez de un correo completo) para las cuentas históricas de este visor.
+   El resto del personal (todo Activos por Colombia, ya que este mismo
+   Supabase Auth se comparte entre varios sistemas) inicia sesión con su
+   correo real. Roles vigentes: 'admin', 'comercial', 'comunicaciones',
+   'juridico', 'sin_acceso'. */
 let currentRole = null;
 let currentUser = null;
 
@@ -42,7 +46,7 @@ document.addEventListener('DOMContentLoaded',async function(){
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
     document.getElementById('logout-btn').style.display = 'inline-block';
-    if(currentRole==='administrador') document.getElementById('admin-btn').style.display = 'inline-block';
+    if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
     iniciarControlInactividad();
   }
 });
@@ -130,18 +134,28 @@ async function doLogin(){
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
   document.getElementById('logout-btn').style.display = 'inline-block';
-  if(currentRole==='administrador') document.getElementById('admin-btn').style.display = 'inline-block';
+  if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
   registrarLog('login', null);
   iniciarControlInactividad();
 }
 
 /* ── PANEL DE ADMINISTRACIÓN DE USUARIOS ──
-   Solo visible/funcional para currentRole === 'administrador'. Toda la lógica
-   sensible (crear, cambiar rol, eliminar) vive en la Edge Function
+   Solo visible/funcional para currentRole === 'admin'. Administra TODOS
+   los usuarios del proyecto Supabase (compartido con otros sistemas de
+   Activos por Colombia). Toda la lógica sensible (crear, cambiar rol,
+   habilitar/deshabilitar, eliminar) vive en la Edge Function
    'admin-users', que usa la service_role key del lado del servidor y
    vuelve a verificar ahí que quien llama sea admin — el chequeo de rol
    en el navegador es solo para mostrar/ocultar el botón, no es la
    verdadera barrera de seguridad. */
+
+const ROLES_LABEL = {
+  admin: 'Admin',
+  comercial: 'Comercial',
+  comunicaciones: 'Comunicaciones',
+  juridico: 'Jurídico',
+  sin_acceso: 'Sin acceso'
+};
 function adminMsg(texto, tipo){
   const el = document.getElementById('admin-msg');
   el.className = tipo;
@@ -176,6 +190,12 @@ async function llamarAdmin(payload){
   return data;
 }
 
+function opcionesRol(rolActual){
+  return Object.keys(ROLES_LABEL).map(r=>
+    `<option value="${r}" ${rolActual===r?'selected':''}>${ROLES_LABEL[r]}</option>`
+  ).join('');
+}
+
 async function cargarUsuarios(){
   const cont = document.getElementById('admin-users-table');
   cont.innerHTML = '<span class="null">Cargando usuarios…</span>';
@@ -183,26 +203,30 @@ async function cargarUsuarios(){
     const data = await llamarAdmin({ action:'list' });
     const filas = (data.usuarios||[]).map(u=>{
       const esYo = u.id === currentUser.id;
+      const estadoChip = u.deshabilitado
+        ? '<span class="chip ei-no">Deshabilitado</span>'
+        : '<span class="chip ei-yes">Activo</span>';
       return `<tr>
-        <td class="vm">${esc(u.username)}${esYo?' <span class="null">(tú)</span>':''}</td>
+        <td class="vm">${esc(u.nombre)}<br><span class="null" style="font-size:12px">${esc(u.email)}</span>${esYo?' <span class="null">(tú)</span>':''}</td>
         <td>
           <select class="role-select" onchange="cambiarRolUsuario('${u.id}', this.value, this)" ${esYo?'title="Tu propia cuenta"':''}>
-            <option value="comercial" ${u.role==='comercial'?'selected':''}>Comercial</option>
-            <option value="SAE" ${u.role==='SAE'?'selected':''}>SAE</option>
-            <option value="administrador" ${u.role==='administrador'?'selected':''}>Administrador</option>
+            ${u.role ? '' : '<option value="" selected disabled>Sin rol</option>'}
+            ${opcionesRol(u.role)}
           </select>
         </td>
+        <td>${estadoChip}</td>
         <td>${u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('es-CO') : '<span class="null">Nunca</span>'}</td>
         <td>
-          <button class="au-reset" onclick="resetearPasswordUsuario('${u.id}','${esc(u.username)}')">Nueva clave</button>
-          ${esYo?'':`<button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.username)}')">Eliminar</button>`}
+          <button class="au-reset" onclick="toggleEstadoUsuario('${u.id}','${esc(u.nombre)}', ${u.deshabilitado})">${u.deshabilitado?'Habilitar':'Deshabilitar'}</button>
+          <button class="au-reset" onclick="resetearPasswordUsuario('${u.id}','${esc(u.nombre)}')">Nueva clave</button>
+          ${esYo?'':`<button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.nombre)}')">Eliminar</button>`}
         </td>
       </tr>`;
     }).join('');
     cont.innerHTML = `
       <table class="admin-users-list">
-        <thead><tr><th>Usuario</th><th>Rol</th><th>Último acceso</th><th>Acciones</th></tr></thead>
-        <tbody>${filas || '<tr><td colspan="4"><span class="null">Sin usuarios</span></td></tr>'}</tbody>
+        <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Acciones</th></tr></thead>
+        <tbody>${filas || '<tr><td colspan="5"><span class="null">Sin usuarios</span></td></tr>'}</tbody>
       </table>`;
   }catch(e){
     cont.innerHTML = '';
@@ -211,23 +235,38 @@ async function cargarUsuarios(){
 }
 
 async function crearUsuario(){
-  const username = document.getElementById('au-user').value.trim();
+  const nombre = document.getElementById('au-nombre').value.trim();
+  const email = document.getElementById('au-email').value.trim();
   const password = document.getElementById('au-pass').value;
   const role = document.getElementById('au-role').value;
   const btn = document.getElementById('au-btn');
-  if(!username || !password){ adminMsg('Completa usuario y contraseña.', 'error'); return; }
+  if(!nombre || !email || !password){ adminMsg('Completa nombre, correo y contraseña.', 'error'); return; }
 
   btn.disabled = true;
   try{
-    await llamarAdmin({ action:'create', username, password, role });
-    adminMsg(`✓ Usuario "${username}" creado con rol ${role}.`, 'ok');
-    document.getElementById('au-user').value = '';
+    await llamarAdmin({ action:'create', email, password, nombre, role });
+    adminMsg(`✓ Usuario "${nombre}" creado con rol ${ROLES_LABEL[role]||role}.`, 'ok');
+    document.getElementById('au-nombre').value = '';
+    document.getElementById('au-email').value = '';
     document.getElementById('au-pass').value = '';
     cargarUsuarios();
   }catch(e){
     adminMsg('⚠ ' + e.message, 'error');
   }finally{
     btn.disabled = false;
+  }
+}
+
+async function toggleEstadoUsuario(userId, nombre, estaDeshabilitado){
+  const habilitar = !!estaDeshabilitado;
+  const verbo = habilitar ? 'habilitar' : 'deshabilitar';
+  if(!confirm(`¿Seguro que quieres ${verbo} a "${nombre}"?`)) return;
+  try{
+    await llamarAdmin({ action:'setHabilitado', userId, habilitado: habilitar });
+    adminMsg(`✓ Usuario "${nombre}" ${habilitar?'habilitado':'deshabilitado'}.`, 'ok');
+    cargarUsuarios();
+  }catch(e){
+    adminMsg('⚠ ' + e.message, 'error');
   }
 }
 

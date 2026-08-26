@@ -45,8 +45,12 @@
       <div class="stitle"><span class="stitle-icon">👤</span>Crear nuevo usuario</div>
       <div class="g3" style="align-items:flex-end;">
         <div class="lf-group" style="margin-bottom:0;">
-          <label>Usuario</label>
-          <input type="text" id="au-user" placeholder="ej: juan2026" autocomplete="off" autocorrect="off" spellcheck="false">
+          <label>Nombre completo</label>
+          <input type="text" id="au-nombre" placeholder="ej: Juan Pérez" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="lf-group" style="margin-bottom:0;">
+          <label>Correo</label>
+          <input type="email" id="au-email" placeholder="usuario@activosporcolombia.com" autocomplete="off" autocorrect="off" spellcheck="false">
         </div>
         <div class="lf-group" style="margin-bottom:0;">
           <label>Contraseña</label>
@@ -56,8 +60,10 @@
           <label>Rol</label>
           <select id="au-role">
             <option value="comercial">Comercial</option>
-            <option value="SAE">SAE</option>
-            <option value="administrador">Administrador</option>
+            <option value="comunicaciones">Comunicaciones</option>
+            <option value="juridico">Jurídico</option>
+            <option value="sin_acceso">Sin acceso</option>
+            <option value="admin">Admin</option>
           </select>
         </div>
       </div>
