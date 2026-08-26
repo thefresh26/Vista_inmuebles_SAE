@@ -154,6 +154,16 @@ function dropdownInteres(total){
    espacios extra, sin importar cómo esté cargado en la base. */
 function fmtFmi(v){ return nul(v) ? '—' : String(v).trim().toUpperCase(); }
 
+/* Documentos (cartas de manifestación de intención de compra) ligados al
+   FMI. buscar_folios devuelve un arreglo jsonb [{nombre, url}, ...]; un
+   mismo folio puede tener más de un documento (o ninguno). */
+function documentosHtml(docs){
+  if(!Array.isArray(docs) || docs.length===0) return '<span class="null">Sin documento</span>';
+  return docs.map((d,i)=>
+    `<a class="map-link" href="${esc(d.url)}" target="_blank">${icon('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>')} Ver documento${docs.length>1?' '+(i+1):''}</a>`
+  ).join('<br>');
+}
+
 /* Separa la entrada de folios por coma "," o diagonal "/", limpia espacios
    y elimina duplicados/valores vacíos. */
 function parseFolios(q){
@@ -207,7 +217,7 @@ async function buscar(){
       if(!r){
         return `<tr class="row-empty">
           <td class="vm">${esc(f)}</td>
-          <td colspan="3"><span class="null">⚠ No se encontró este folio en la base de datos</span></td>
+          <td colspan="4"><span class="null">⚠ No se encontró este folio en la base de datos</span></td>
         </tr>`;
       }
       const esUnidad=!nul(r.codigo_subasta);
@@ -222,6 +232,7 @@ async function buscar(){
         <td>${unidadHtml}</td>
         <td>${enlaceHtml}</td>
         <td>${dropdownInteres(r.interesados)}</td>
+        <td>${documentosHtml(r.documentos)}</td>
       </tr>`;
     }).join('');
 
@@ -241,6 +252,7 @@ async function buscar(){
             <th>Unidad</th>
             <th>Enlace</th>
             <th>Expresión de Interés</th>
+            <th>Documento</th>
           </tr>
         </thead>
         <tbody>
