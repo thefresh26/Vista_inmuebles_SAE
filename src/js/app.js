@@ -14,15 +14,15 @@ const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
    Supabase Auth (auth.signInWithPassword), que guarda las contraseñas
    hasheadas del lado del servidor. Los usuarios se crean una sola vez
    desde el panel de Supabase (Authentication > Users), asignándoles un
-   "role" en user_metadata ('broker' o 'comercial'). Como Supabase Auth
+   "role" en user_metadata ('comercial', 'SAE' o 'administrador'). Como Supabase Auth
    identifica usuarios por email, se mantiene un mapeo usuario -> email
    para que el login siga sintiéndose igual que antes (usuario corto en
-   vez de un correo completo). */
+   vez de un correo completo). Roles vigentes: 'administrador', 'comercial'
+   y 'SAE'. */
 let currentRole = null;
 let currentUser = null;
 
 const USER_EMAILS = {
-  'broker2026':    'broker2026@sae-inmuebles.app',
   'comercial2026': 'comercial2026@sae-inmuebles.app',
   'SAE':           'sae@sae-inmuebles.app'
 };
@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded',async function(){
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
     document.getElementById('logout-btn').style.display = 'inline-block';
-    if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
+    if(currentRole==='administrador') document.getElementById('admin-btn').style.display = 'inline-block';
     iniciarControlInactividad();
   }
 });
@@ -130,13 +130,13 @@ async function doLogin(){
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
   document.getElementById('logout-btn').style.display = 'inline-block';
-  if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
+  if(currentRole==='administrador') document.getElementById('admin-btn').style.display = 'inline-block';
   registrarLog('login', null);
   iniciarControlInactividad();
 }
 
 /* ── PANEL DE ADMINISTRACIÓN DE USUARIOS ──
-   Solo visible/funcional para currentRole === 'admin'. Toda la lógica
+   Solo visible/funcional para currentRole === 'administrador'. Toda la lógica
    sensible (crear, cambiar rol, eliminar) vive en la Edge Function
    'admin-users', que usa la service_role key del lado del servidor y
    vuelve a verificar ahí que quien llama sea admin — el chequeo de rol
@@ -188,8 +188,8 @@ async function cargarUsuarios(){
         <td>
           <select class="role-select" onchange="cambiarRolUsuario('${u.id}', this.value, this)" ${esYo?'title="Tu propia cuenta"':''}>
             <option value="comercial" ${u.role==='comercial'?'selected':''}>Comercial</option>
-            <option value="broker" ${u.role==='broker'?'selected':''}>Broker</option>
-            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+            <option value="SAE" ${u.role==='SAE'?'selected':''}>SAE</option>
+            <option value="administrador" ${u.role==='administrador'?'selected':''}>Administrador</option>
           </select>
         </td>
         <td>${u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('es-CO') : '<span class="null">Nunca</span>'}</td>
