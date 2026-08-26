@@ -32,8 +32,50 @@
   </div>
 </div>
 
+<!-- PANEL DE ADMINISTRACIÓN DE USUARIOS (solo visible para rol admin) -->
+<div id="admin-overlay">
+  <div class="admin-card">
+    <div class="admin-head">
+      <div class="login-title" style="margin-bottom:0;">Administración de Usuarios</div>
+      <button class="admin-close" onclick="cerrarPanelAdmin()">✕</button>
+    </div>
+    <div id="admin-msg"></div>
+
+    <div class="sec" style="margin-top:16px;">
+      <div class="stitle"><span class="stitle-icon">👤</span>Crear nuevo usuario</div>
+      <div class="g3" style="align-items:flex-end;">
+        <div class="lf-group" style="margin-bottom:0;">
+          <label>Usuario</label>
+          <input type="text" id="au-user" placeholder="ej: juan2026" autocomplete="off" autocorrect="off" spellcheck="false">
+        </div>
+        <div class="lf-group" style="margin-bottom:0;">
+          <label>Contraseña</label>
+          <input type="password" id="au-pass" placeholder="mínimo 6 caracteres" autocomplete="off">
+        </div>
+        <div class="lf-group" style="margin-bottom:0;">
+          <label>Rol</label>
+          <select id="au-role">
+            <option value="comercial">Comercial</option>
+            <option value="broker">Broker</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+      </div>
+      <button id="au-btn" onclick="crearUsuario()" style="margin-top:14px;">Crear usuario</button>
+    </div>
+
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">📋</span>Usuarios existentes</div>
+      <div id="admin-users-table"><span class="null">Cargando usuarios…</span></div>
+    </div>
+  </div>
+</div>
+
 <div class="hero">
-  <button id="logout-btn" class="logout-btn" onclick="cerrarSesionManual()" style="display:none;">Cerrar sesión</button>
+  <div class="header-actions">
+    <button id="admin-btn" class="logout-btn" onclick="abrirPanelAdmin()" style="display:none;">Administración</button>
+    <button id="logout-btn" class="logout-btn" onclick="cerrarSesionManual()" style="display:none;">Cerrar sesión</button>
+  </div>
   <div class="hero-inner">
     <div class="hero-eyebrow" id="hero-eyebrow">Consulta de Expresiones de Interés · Mayo 2026</div>
     <h1>Consulta de <span>Expresiones de Interés</span> por Folio</h1>

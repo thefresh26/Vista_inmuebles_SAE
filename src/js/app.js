@@ -42,6 +42,7 @@ document.addEventListener('DOMContentLoaded',async function(){
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
     document.getElementById('logout-btn').style.display = 'inline-block';
+    if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
     iniciarControlInactividad();
   }
 });
@@ -100,10 +101,13 @@ async function doLogin(){
   const btn  = document.getElementById('l-btn');
   if(!userInput || !pass) return;
 
-  /* Permite loguearse con el usuario corto de siempre o con un email
-     directo, por si en el futuro se agregan más cuentas desde Supabase
-     sin tener que tocar este archivo. */
-  const email = USER_EMAILS[userInput] || userInput;
+  /* Permite loguearse con el usuario corto de siempre, con un email
+     directo, o con cualquier usuario corto nuevo creado desde el panel
+     de administración (se le agrega automáticamente el dominio interno,
+     sin tener que tocar este archivo cada vez que se crea alguien). */
+  const email = userInput.includes('@')
+    ? userInput
+    : (USER_EMAILS[userInput] || `${userInput}@sae-inmuebles.app`);
 
   btn.disabled = true;
   const btnTextoOriginal = btn.textContent;
@@ -126,8 +130,145 @@ async function doLogin(){
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
   document.getElementById('logout-btn').style.display = 'inline-block';
+  if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
   registrarLog('login', null);
   iniciarControlInactividad();
+}
+
+/* ── PANEL DE ADMINISTRACIÓN DE USUARIOS ──
+   Solo visible/funcional para currentRole === 'admin'. Toda la lógica
+   sensible (crear, cambiar rol, eliminar) vive en la Edge Function
+   'admin-users', que usa la service_role key del lado del servidor y
+   vuelve a verificar ahí que quien llama sea admin — el chequeo de rol
+   en el navegador es solo para mostrar/ocultar el botón, no es la
+   verdadera barrera de seguridad. */
+function adminMsg(texto, tipo){
+  const el = document.getElementById('admin-msg');
+  el.className = tipo;
+  el.textContent = texto;
+}
+
+function abrirPanelAdmin(){
+  document.getElementById('admin-overlay').style.display = 'flex';
+  document.getElementById('admin-msg').className = '';
+  document.getElementById('admin-msg').textContent = '';
+  cargarUsuarios();
+}
+
+function cerrarPanelAdmin(){
+  document.getElementById('admin-overlay').style.display = 'none';
+}
+
+async function llamarAdmin(payload){
+  const { data, error } = await supabaseClient.functions.invoke('admin-users', { body: payload });
+  if(error){
+    /* supabase-js entrega el cuerpo de la respuesta (con el mensaje real
+       del servidor) dentro de error.context cuando la función respondió
+       con un código de error controlado (400/401/403/etc.). */
+    let detalle = error.message;
+    try{
+      const cuerpo = await error.context.json();
+      if(cuerpo?.error) detalle = cuerpo.error;
+    }catch(e){}
+    throw new Error(detalle);
+  }
+  if(data?.error) throw new Error(data.error);
+  return data;
+}
+
+async function cargarUsuarios(){
+  const cont = document.getElementById('admin-users-table');
+  cont.innerHTML = '<span class="null">Cargando usuarios…</span>';
+  try{
+    const data = await llamarAdmin({ action:'list' });
+    const filas = (data.usuarios||[]).map(u=>{
+      const esYo = u.id === currentUser.id;
+      return `<tr>
+        <td class="vm">${esc(u.username)}${esYo?' <span class="null">(tú)</span>':''}</td>
+        <td>
+          <select class="role-select" onchange="cambiarRolUsuario('${u.id}', this.value, this)" ${esYo?'title="Tu propia cuenta"':''}>
+            <option value="comercial" ${u.role==='comercial'?'selected':''}>Comercial</option>
+            <option value="broker" ${u.role==='broker'?'selected':''}>Broker</option>
+            <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+          </select>
+        </td>
+        <td>${u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('es-CO') : '<span class="null">Nunca</span>'}</td>
+        <td>
+          <button class="au-reset" onclick="resetearPasswordUsuario('${u.id}','${esc(u.username)}')">Nueva clave</button>
+          ${esYo?'':`<button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.username)}')">Eliminar</button>`}
+        </td>
+      </tr>`;
+    }).join('');
+    cont.innerHTML = `
+      <table class="admin-users-list">
+        <thead><tr><th>Usuario</th><th>Rol</th><th>Último acceso</th><th>Acciones</th></tr></thead>
+        <tbody>${filas || '<tr><td colspan="4"><span class="null">Sin usuarios</span></td></tr>'}</tbody>
+      </table>`;
+  }catch(e){
+    cont.innerHTML = '';
+    adminMsg('⚠ ' + e.message, 'error');
+  }
+}
+
+async function crearUsuario(){
+  const username = document.getElementById('au-user').value.trim();
+  const password = document.getElementById('au-pass').value;
+  const role = document.getElementById('au-role').value;
+  const btn = document.getElementById('au-btn');
+  if(!username || !password){ adminMsg('Completa usuario y contraseña.', 'error'); return; }
+
+  btn.disabled = true;
+  try{
+    await llamarAdmin({ action:'create', username, password, role });
+    adminMsg(`✓ Usuario "${username}" creado con rol ${role}.`, 'ok');
+    document.getElementById('au-user').value = '';
+    document.getElementById('au-pass').value = '';
+    cargarUsuarios();
+  }catch(e){
+    adminMsg('⚠ ' + e.message, 'error');
+  }finally{
+    btn.disabled = false;
+  }
+}
+
+async function cambiarRolUsuario(userId, nuevoRol, selectEl){
+  const rolAnterior = selectEl.dataset.rolAnterior || null;
+  try{
+    await llamarAdmin({ action:'updateRole', userId, role: nuevoRol });
+    adminMsg('✓ Rol actualizado.', 'ok');
+    selectEl.dataset.rolAnterior = nuevoRol;
+    /* Si el admin se cambia el rol a sí mismo (no debería poder, pero
+       por si acaso), refresca sesión para reflejarlo. */
+    if(userId === currentUser.id){
+      currentRole = nuevoRol;
+    }
+  }catch(e){
+    adminMsg('⚠ ' + e.message, 'error');
+    if(rolAnterior) selectEl.value = rolAnterior;
+    else cargarUsuarios();
+  }
+}
+
+async function resetearPasswordUsuario(userId, username){
+  const nueva = prompt(`Nueva contraseña para "${username}" (mínimo 6 caracteres):`);
+  if(!nueva) return;
+  try{
+    await llamarAdmin({ action:'resetPassword', userId, password: nueva });
+    adminMsg(`✓ Contraseña de "${username}" actualizada.`, 'ok');
+  }catch(e){
+    adminMsg('⚠ ' + e.message, 'error');
+  }
+}
+
+async function eliminarUsuario(userId, username){
+  if(!confirm(`¿Eliminar al usuario "${username}"? Esta acción no se puede deshacer.`)) return;
+  try{
+    await llamarAdmin({ action:'delete', userId });
+    adminMsg(`✓ Usuario "${username}" eliminado.`, 'ok');
+    cargarUsuarios();
+  }catch(e){
+    adminMsg('⚠ ' + e.message, 'error');
+  }
 }
 
 document.getElementById('qi').addEventListener('keydown',e=>{if(e.key==='Enter' && !e.shiftKey){e.preventDefault();buscar();}});
