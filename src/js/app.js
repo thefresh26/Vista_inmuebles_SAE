@@ -45,11 +45,19 @@ document.addEventListener('DOMContentLoaded',async function(){
     currentRole = session.user.user_metadata?.role || 'comercial';
     document.getElementById('login-overlay').style.display = 'none';
     document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
-    document.getElementById('logout-btn').style.display = 'inline-block';
-    if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
+    mostrarBarraSesion();
     iniciarControlInactividad();
   }
 });
+
+/* Muestra la barra superior de pestañas (Consultar / Administración) y el
+   botón de cerrar sesión una vez el usuario está logueado. La pestaña
+   "Administración" solo se muestra si el rol es 'admin' — el chequeo real
+   de seguridad vive del lado del servidor (ver Edge Function admin-users). */
+function mostrarBarraSesion(){
+  document.getElementById('topbar').style.display = 'flex';
+  if(currentRole==='admin') document.getElementById('tab-btn-admin').style.display = 'inline-block';
+}
 
 /* ── CIERRE DE SESIÓN AUTOMÁTICO POR INACTIVIDAD ──
    Si el usuario no interactúa con la página durante MINUTOS_INACTIVIDAD,
@@ -133,8 +141,7 @@ async function doLogin(){
   currentRole = data.user.user_metadata?.role || 'comercial';
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
-  document.getElementById('logout-btn').style.display = 'inline-block';
-  if(currentRole==='admin') document.getElementById('admin-btn').style.display = 'inline-block';
+  mostrarBarraSesion();
   registrarLog('login', null);
   iniciarControlInactividad();
 }
@@ -162,15 +169,20 @@ function adminMsg(texto, tipo){
   el.textContent = texto;
 }
 
-function abrirPanelAdmin(){
-  document.getElementById('admin-overlay').style.display = 'flex';
-  document.getElementById('admin-msg').className = '';
-  document.getElementById('admin-msg').textContent = '';
-  cargarUsuarios();
-}
-
-function cerrarPanelAdmin(){
-  document.getElementById('admin-overlay').style.display = 'none';
+/* Cambia entre las pestañas "Consultar" y "Administración". La pestaña de
+   administración solo es alcanzable si el botón está visible (currentRole
+   === 'admin'); aun así, se vuelve a validar en el servidor con cada
+   acción, así que no pasa nada si alguien fuerza esta función a mano. */
+function mostrarTab(nombre){
+  ['consultar','administracion'].forEach(t=>{
+    document.getElementById('tab-'+t).classList.toggle('active', t===nombre);
+    document.getElementById('tab-btn-'+(t==='administracion'?'admin':t)).classList.toggle('active', t===nombre);
+  });
+  if(nombre==='administracion'){
+    document.getElementById('admin-msg').className = '';
+    document.getElementById('admin-msg').textContent = '';
+    cargarUsuarios();
+  }
 }
 
 async function llamarAdmin(payload){
