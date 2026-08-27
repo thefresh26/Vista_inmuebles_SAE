@@ -29,4 +29,24 @@ npm run dev
 
 ## Roles de acceso
 
-Mismos usuarios que INMUEBLES-BROKERS: `broker2026` / `comercial2026`.
+**Actualizado:** este sistema ya NO usa los usuarios `broker2026` /
+`comercial2026`. Desde el panel de administración de usuarios (pestaña
+"Administración", visible solo para rol `admin`), se administra la tabla
+de autenticación de Supabase Auth **compartida por varios sistemas
+internos de Activos por Colombia** (no exclusiva de este proyecto), con
+correos institucionales reales y estos roles:
+
+| Rol              | Descripción                                         |
+|------------------|------------------------------------------------------|
+| `admin`          | Acceso total + panel de administración de usuarios   |
+| `comercial`      | Consulta de inventario                                |
+| `comunicaciones` | Consulta de inventario                                |
+| `juridico`       | Consulta de inventario                                |
+| `sin_acceso`     | Cuenta existe pero sin permisos de consulta           |
+
+La lógica de administración (crear, cambiar rol, habilitar/deshabilitar,
+resetear contraseña, eliminar) vive en la Edge Function de Supabase
+`admin-users`, que verifica en el servidor que quien llama tenga rol
+`admin` antes de ejecutar cualquier acción — la verificación de rol en el
+navegador (mostrar/ocultar la pestaña) es solo cosmética, no la barrera
+de seguridad real.
