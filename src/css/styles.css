@@ -164,7 +164,7 @@ main{flex:1;padding:28px 32px;max-width:980px;margin:0 auto;width:100%;}
 #admin-msg{font-size:12px;border-radius:8px;padding:10px 14px;margin:10px 0 0;font-family:var(--body);display:none;}
 #admin-msg.ok{display:block;background:rgba(26,184,122,.1);border:1px solid rgba(26,184,122,.3);color:#138f5e;}
 #admin-msg.error{display:block;background:#fdeaea;border:1px solid rgba(224,53,53,.3);color:var(--red);}
-.admin-card select{width:100%;background:var(--white);border:2px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--text);font-family:var(--body);outline:none;}
+.admin-card select:not(.role-select){width:100%;background:var(--white);border:2px solid var(--border);border-radius:10px;padding:12px 16px;font-size:14px;color:var(--text);font-family:var(--body);outline:none;}
 .admin-card .lf-group input{background:var(--white);}
 #au-btn{background:linear-gradient(135deg,var(--pink-deep),var(--pink));color:var(--white);border:none;border-radius:10px;padding:11px 22px;font-family:var(--sans);font-weight:700;font-size:13px;cursor:pointer;}
 #au-btn:hover{opacity:.9;}
