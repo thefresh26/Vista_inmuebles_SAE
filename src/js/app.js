@@ -95,10 +95,14 @@ async function cerrarSesionManual(){
 /* ── TRAZABILIDAD ──
    Registra eventos clave (login, búsquedas, logout) en la tabla
    logs_acceso. Si falla (ej. sin conexión), no interrumpe el uso normal
-   de la app: la trazabilidad es un "mejor esfuerzo", no un bloqueo. */
+   de la app: la trazabilidad es un "mejor esfuerzo", no un bloqueo.
+   IMPORTANTE: la política de seguridad (RLS) de esta tabla exige que
+   usuario_id coincida con auth.uid() de quien inserta — sin este campo
+   Supabase rechaza el insert con 403, sin importar el rol. */
 async function registrarLog(accion, detalle){
   try{
     await supabaseClient.from('logs_acceso').insert({
+      usuario_id: currentUser?.id || null,
       usuario_email: currentUser?.email || null,
       accion,
       detalle: detalle || null
