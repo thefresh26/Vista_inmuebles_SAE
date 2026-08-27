@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded',async function(){
   if(session){
     currentUser = session.user;
     currentRole = session.user.user_metadata?.role || 'comercial';
-    document.getElementById('login-overlay').style.display = 'none';
+    ocultarLoginOverlay();
     document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
     mostrarBarraSesion();
     iniciarControlInactividad();
@@ -54,6 +54,14 @@ document.addEventListener('DOMContentLoaded',async function(){
    botón de cerrar sesión una vez el usuario está logueado. La pestaña
    "Administración" solo se muestra si el rol es 'admin' — el chequeo real
    de seguridad vive del lado del servidor (ver Edge Function admin-users). */
+/* Oculta el overlay de login con una transición suave (fade + leve
+   desplazamiento) en vez de un display:none instantáneo. Se deja el
+   elemento en el DOM (opacity 0 + pointer-events:none) para no depender
+   de temporizadores en JS que deban coincidir con la duración del CSS. */
+function ocultarLoginOverlay(){
+  document.getElementById('login-overlay').classList.add('lo-hide');
+}
+
 function mostrarBarraSesion(){
   document.getElementById('topbar').style.display = 'flex';
   if(currentRole==='admin') document.getElementById('tab-btn-admin').style.display = 'inline-block';
@@ -135,7 +143,7 @@ async function doLogin(){
   btn.textContent = btnTextoOriginal;
 
   if(error || !data.session){
-    err.style.display = 'block';
+    err.classList.add('show');
     document.getElementById('l-pass').value = '';
     document.getElementById('l-pass').focus();
     return;
@@ -143,7 +151,7 @@ async function doLogin(){
 
   currentUser = data.user;
   currentRole = data.user.user_metadata?.role || 'comercial';
-  document.getElementById('login-overlay').style.display = 'none';
+  ocultarLoginOverlay();
   document.getElementById('hero-eyebrow').textContent = 'CONSULTA DE EXPRESIONES DE INTERÉS · SAE · 2026';
   mostrarBarraSesion();
   registrarLog('login', null);
@@ -212,17 +220,18 @@ function opcionesRol(rolActual){
   ).join('');
 }
 
-async function cargarUsuarios(){
+async function cargarUsuarios(flashUserId){
   const cont = document.getElementById('admin-users-table');
   cont.innerHTML = '<span class="null">Cargando usuarios…</span>';
   try{
     const data = await llamarAdmin({ action:'list' });
-    const filas = (data.usuarios||[]).map(u=>{
+    const filas = (data.usuarios||[]).map((u,i)=>{
       const esYo = u.id === currentUser.id;
       const estadoChip = u.deshabilitado
         ? '<span class="chip ei-no">Deshabilitado</span>'
         : '<span class="chip ei-yes">Activo</span>';
-      return `<tr>
+      const delay = Math.min(i*30, 300);
+      return `<tr data-user-id="${u.id}" style="animation-delay:${delay}ms">
         <td class="vm">${esc(u.nombre)}<br><span class="null" style="font-size:12px">${esc(u.email)}</span>${esYo?' <span class="null">(tú)</span>':''}</td>
         <td>
           <select class="role-select" onchange="cambiarRolUsuario('${u.id}', this.value, this)" ${esYo?'title="Tu propia cuenta"':''}>
@@ -234,8 +243,8 @@ async function cargarUsuarios(){
         <td>${u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('es-CO') : '<span class="null">Nunca</span>'}</td>
         <td>
           <button class="au-reset" onclick="toggleEstadoUsuario('${u.id}','${esc(u.nombre)}', ${u.deshabilitado})">${u.deshabilitado?'Habilitar':'Deshabilitar'}</button>
-          <button class="au-reset" onclick="resetearPasswordUsuario('${u.id}','${esc(u.nombre)}')">Nueva clave</button>
-          ${esYo?'':`<button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.nombre)}')">Eliminar</button>`}
+          <button class="au-reset" onclick="resetearPasswordUsuario('${u.id}','${esc(u.nombre)}', this)">Nueva clave</button>
+          ${esYo?'':`<button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.nombre)}', this)">Eliminar</button>`}
         </td>
       </tr>`;
     }).join('');
@@ -244,6 +253,10 @@ async function cargarUsuarios(){
         <thead><tr><th>Usuario</th><th>Rol</th><th>Estado</th><th>Último acceso</th><th>Acciones</th></tr></thead>
         <tbody>${filas || '<tr><td colspan="5"><span class="null">Sin usuarios</span></td></tr>'}</tbody>
       </table>`;
+    if(flashUserId){
+      const fila = cont.querySelector(`tr[data-user-id="${flashUserId}"]`);
+      if(fila) fila.classList.add('row-flash');
+    }
   }catch(e){
     cont.innerHTML = '';
     adminMsg('⚠ ' + e.message, 'error');
@@ -280,7 +293,7 @@ async function toggleEstadoUsuario(userId, nombre, estaDeshabilitado){
   try{
     await llamarAdmin({ action:'setHabilitado', userId, habilitado: habilitar });
     adminMsg(`✓ Usuario "${nombre}" ${habilitar?'habilitado':'deshabilitado'}.`, 'ok');
-    cargarUsuarios();
+    cargarUsuarios(userId);
   }catch(e){
     adminMsg('⚠ ' + e.message, 'error');
   }
@@ -304,22 +317,32 @@ async function cambiarRolUsuario(userId, nuevoRol, selectEl){
   }
 }
 
-async function resetearPasswordUsuario(userId, username){
+async function resetearPasswordUsuario(userId, username, btnEl){
   const nueva = prompt(`Nueva contraseña para "${username}" (mínimo 6 caracteres):`);
   if(!nueva) return;
   try{
     await llamarAdmin({ action:'resetPassword', userId, password: nueva });
     adminMsg(`✓ Contraseña de "${username}" actualizada.`, 'ok');
+    const fila = btnEl ? btnEl.closest('tr') : null;
+    if(fila){
+      fila.classList.add('row-flash');
+      setTimeout(()=>fila.classList.remove('row-flash'), 1000);
+    }
   }catch(e){
     adminMsg('⚠ ' + e.message, 'error');
   }
 }
 
-async function eliminarUsuario(userId, username){
+async function eliminarUsuario(userId, username, btnEl){
   if(!confirm(`¿Eliminar al usuario "${username}"? Esta acción no se puede deshacer.`)) return;
   try{
     await llamarAdmin({ action:'delete', userId });
     adminMsg(`✓ Usuario "${username}" eliminado.`, 'ok');
+    const fila = btnEl ? btnEl.closest('tr') : null;
+    if(fila){
+      fila.classList.add('row-removing');
+      await new Promise(r=>setTimeout(r, 200));
+    }
     cargarUsuarios();
   }catch(e){
     adminMsg('⚠ ' + e.message, 'error');
@@ -408,10 +431,11 @@ async function buscar(){
     sb.style.display='none';
     res.style.display='block';
 
-    const rows=folios.map(f=>{
+    const rows=folios.map((f,i)=>{
+      const delay=Math.min(i*30,300);
       const r=found.get(f.toUpperCase());
       if(!r){
-        return `<tr class="row-empty">
+        return `<tr class="row-empty" style="animation-delay:${delay}ms">
           <td class="vm">${esc(f)}</td>
           <td colspan="4"><span class="null">⚠ No se encontró este folio en la base de datos</span></td>
         </tr>`;
@@ -423,7 +447,7 @@ async function buscar(){
       const enlaceHtml=nul(r.enlace_inmueble)
         ?'<span class="null">No publicado</span>'
         :`<a class="map-link" href="${esc(r.enlace_inmueble)}" target="_blank">${icon('<path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/>')} Ver inmueble</a>`;
-      return `<tr>
+      return `<tr style="animation-delay:${delay}ms">
         <td class="vm">${esc(fmtFmi(r.fmi))}</td>
         <td>${unidadHtml}</td>
         <td>${enlaceHtml}</td>
