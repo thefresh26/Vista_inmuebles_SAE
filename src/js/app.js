@@ -268,8 +268,8 @@ function categorizarFuente(texto){
   return 'otros';
 }
 
-const CATEGORIA_LABEL = { todos:'Todos', broker:'Broker', analista:'Analista', jeff:'Jeffrey Guerrero', ale:'Alexandra Balza', otros:'Otros' };
-const CATEGORIA_COLOR = { broker:'var(--pink)', jeff:'var(--blue)', ale:'var(--orange)', otros:'var(--muted)' };
+const CATEGORIA_LABEL = { todos:'Todos', broker:'Broker', analista:'Analista', jeff:'Jeffrey Guerrero', ale:'Alexandra Balza', steven:'Steven Valencia', otros:'Otros' };
+const CATEGORIA_COLOR = { broker:'var(--pink)', jeff:'var(--blue)', ale:'var(--orange)', steven:'var(--green)', otros:'var(--muted)' };
 
 async function cargarDashboard(){
   const cont = document.getElementById('dash-content');
@@ -288,7 +288,7 @@ async function cargarDashboard(){
 function renderDashboard(d){
   const cont = document.getElementById('dash-content');
   dashboardData = d;
-  const totalClasificado = (d.broker||0) + (d.jeff||0) + (d.ale||0) + (d.otros||0);
+  const totalClasificado = (d.broker||0) + (d.jeff||0) + (d.ale||0) + (d.steven||0) + (d.otros||0);
   const pct = (n)=> totalClasificado ? Math.round((n/totalClasificado)*100) : 0;
 
   const tiles = [
@@ -297,6 +297,7 @@ function renderDashboard(d){
     { label:'Traídas por brokers', value:d.broker, sub:`${pct(d.broker)}% del total`, color:'var(--pink)' },
     { label:'Gestionadas por Jeffrey Guerrero', value:d.jeff, sub:`${pct(d.jeff)}% del total`, color:'var(--blue)' },
     { label:'Gestionadas por Alexandra Balza', value:d.ale, sub:`${pct(d.ale)}% del total`, color:'var(--orange)' },
+    { label:'Gestionadas por Steven Valencia', value:d.steven, sub:`${pct(d.steven)}% del total`, color:'var(--green)' },
     { label:'Otros / sin clasificar', value:d.otros, sub:`${pct(d.otros)}% del total`, color:'var(--muted)' },
   ];
 
@@ -329,6 +330,7 @@ function renderDashboard(d){
        ej. "KALIMA LOGISTICS", o un telefono suelto). */
     let nombre = categoria === 'jeff' ? 'Jeffrey Guerrero'
       : categoria === 'ale' ? 'Alexandra Balza'
+      : categoria === 'steven' ? 'Steven Valencia'
       : normalizarAliasBroker(limpiarFuente(f.analista));
     /* Si lo unico que quedo despues de limpiar es un telefono (o algo
        parecido: solo digitos, espacios, +, () o guiones), no es un
@@ -385,9 +387,9 @@ function renderRanking(){
 
   const filtradas = dashboardFuentes.filter(f=>{
     if(filtroFuenteCategoria === 'analista'){
-      // "Analista" agrupa a Jeffrey y Alexandra en un solo filtro (ya no
-      // se filtran por separado): cualquiera de los dos pasa.
-      if(f.categoria !== 'jeff' && f.categoria !== 'ale') return false;
+      // "Analista" agrupa a Jeffrey, Alexandra y Steven en un solo filtro
+      // (ya no se filtran por separado): cualquiera de los tres pasa.
+      if(f.categoria !== 'jeff' && f.categoria !== 'ale' && f.categoria !== 'steven') return false;
     } else if(filtroFuenteCategoria !== 'todos' && f.categoria !== filtroFuenteCategoria){
       return false;
     }
