@@ -234,6 +234,11 @@ function limpiarFuente(texto){
   if(corte !== -1) t = t.slice(0, corte);
   t = t.replace(/\s*-?\s*broker\s*$/i, '');
   t = t.trim();
+  /* La columna "broker" a veces trae solo un telefono, y como el Excel
+     lo guarda como numero, llega con ".0" pegado al final
+     (ej. "3164266449.0") — se quita si el texto es solo digitos/espacios/
+     guiones (para no tocar nombres reales por error). */
+  if(/^[\d\s.-]+$/.test(t)) t = t.replace(/\.0$/, '');
   return t || String(texto||'').trim();
 }
 
@@ -295,13 +300,19 @@ function renderDashboard(d){
      varias veces con textos distintos. */
   const mapa = new Map();
   (d.top_fuentes||[]).forEach(f=>{
-    const categoria = categorizarFuente(f.analista);
+    /* Desde la version 2 de estadisticas_expresiones_interes(), la funcion
+       ya manda la categoria calculada (mira la columna "broker" real, no
+       solo el texto de "analista"). Si por alguna razon no viniera (una
+       version vieja de la funcion en Supabase), se calcula aqui como
+       respaldo para no romper el dashboard. */
+    const categoria = f.categoria || categorizarFuente(f.analista);
     /* Jeffrey y Alexandra siempre se agrupan bajo su nombre fijo: el texto
        libre a veces los pone primero ("IC JEFFREY GUERRERO / ANDRES...")
        y a veces despues del cliente ("IC FABIAN GALVIS / JEFFREY GUERRERO"),
        asi que tomar "el primer pedazo" del texto a veces mostraba el
        nombre del cliente en vez del analista. Para broker/otros si sirve
-       extraer el nombre limpio, porque ahi no hay un nombre fijo. */
+       limpiar el texto (que ahora puede ser el nombre del broker real,
+       ej. "KALIMA LOGISTICS", o un telefono suelto). */
     const nombre = categoria === 'jeff' ? 'Jeffrey Guerrero'
       : categoria === 'ale' ? 'Alexandra Balza'
       : limpiarFuente(f.analista);
