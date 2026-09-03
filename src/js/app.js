@@ -212,10 +212,45 @@ function mostrarTab(nombre){
    calzan en ninguna de las tres categorías (otro nombre de analista,
    texto vacío, etc.) quedan en "Otros / sin clasificar". */
 let dashboardCargado = false;
+let dashboardData = null;      // último JSON traído de Supabase (para recalcular al filtrar)
+let dashboardFuentes = [];     // top_fuentes ya limpio/agrupado por nombre
+let filtroFuenteCategoria = 'todos';
+let filtroFuenteTexto = '';
 
 function fmtNum(n){
   return new Intl.NumberFormat('es-CO').format(n||0);
 }
+
+/* Limpia el texto libre de la columna "analista" para mostrar solo el
+   nombre de quien trajo el cliente, sin las notas sueltas que agregan
+   ("- BROKER", "- PROXIMO VENTA", "/ ELIAS GARCIA -- ENTRA AL MAIL", etc).
+   Estrategia: quitar el prefijo "IC ", cortar en la primera nota (todo lo
+   que va después de " - ", "--" o "/"), y quitar un "BROKER" suelto al
+   final si quedó pegado al nombre (ej. "NOVA BROKER" -> "NOVA"). */
+function limpiarFuente(texto){
+  let t = String(texto||'').trim();
+  t = t.replace(/^ic\s+/i, '');
+  const corte = t.search(/\s+-\s+|--|\//);
+  if(corte !== -1) t = t.slice(0, corte);
+  t = t.replace(/\s*-?\s*broker\s*$/i, '');
+  t = t.trim();
+  return t || String(texto||'').trim();
+}
+
+/* Misma idea que la función de Supabase (ver 13_estadisticas_expresiones.sql),
+   pero aplicada solo al texto de "analista" porque el ranking se agrupa
+   por ese texto y no tiene la columna "broker" por separado. Sirve para
+   colorear las barras y para los filtros del ranking. */
+function categorizarFuente(texto){
+  const t = String(texto||'');
+  if(/broker/i.test(t)) return 'broker';
+  if(/jeffrey|guerrero/i.test(t)) return 'jeff';
+  if(/alexandra|balza/i.test(t)) return 'ale';
+  return 'otros';
+}
+
+const CATEGORIA_LABEL = { todos:'Todos', broker:'Broker', jeff:'Jeffrey Guerrero', ale:'Alexandra Balza', otros:'Otros' };
+const CATEGORIA_COLOR = { broker:'var(--pink)', jeff:'var(--blue)', ale:'var(--orange)', otros:'var(--muted)' };
 
 async function cargarDashboard(){
   const cont = document.getElementById('dash-content');
@@ -233,6 +268,7 @@ async function cargarDashboard(){
 
 function renderDashboard(d){
   const cont = document.getElementById('dash-content');
+  dashboardData = d;
   const totalClasificado = (d.broker||0) + (d.jeff||0) + (d.ale||0) + (d.otros||0);
   const pct = (n)=> totalClasificado ? Math.round((n/totalClasificado)*100) : 0;
 
@@ -253,18 +289,24 @@ function renderDashboard(d){
     </div>
   `).join('');
 
-  const maxFuente = Math.max(1, ...(d.top_fuentes||[]).map(f=>f.cantidad));
-  const rankingHtml = (d.top_fuentes||[]).map(f=>{
-    const esBroker = /broker/i.test(f.analista);
-    const color = esBroker ? 'var(--pink)' : 'var(--pink-deep)';
-    const widthPct = Math.max(4, Math.round((f.cantidad/maxFuente)*100));
-    return `
-      <div class="rank-row">
-        <div class="rank-label" title="${escapeHtml(f.analista)}">${escapeHtml(f.analista)}</div>
-        <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${widthPct}%;background:${color}"></div></div>
-        <div class="rank-count">${fmtNum(f.cantidad)}</div>
-      </div>`;
-  }).join('');
+  /* Agrupa el top de fuentes por nombre ya limpio (ej. "IC NOVA",
+     "IC NOVA BROKER" y "IC NOVA - BROKER" quedan todas como "NOVA",
+     sumando sus conteos) para que el ranking no repita el mismo nombre
+     varias veces con textos distintos. */
+  const mapa = new Map();
+  (d.top_fuentes||[]).forEach(f=>{
+    const categoria = categorizarFuente(f.analista);
+    const nombre = limpiarFuente(f.analista);
+    const key = categoria + '|' + nombre.toLowerCase();
+    const prev = mapa.get(key);
+    if(prev){ prev.cantidad += f.cantidad; prev.original.push(f.analista); }
+    else mapa.set(key, { nombre, categoria, cantidad:f.cantidad, original:[f.analista] });
+  });
+  dashboardFuentes = Array.from(mapa.values()).sort((a,b)=>b.cantidad-a.cantidad);
+
+  const chipsHtml = ['todos','broker','jeff','ale','otros'].map(cat=>`
+    <button type="button" class="filtro-chip${filtroFuenteCategoria===cat?' active':''}" onclick="filtrarFuentesCategoria('${cat}')">${CATEGORIA_LABEL[cat]}</button>
+  `).join('');
 
   cont.innerHTML = `
     <div class="sec">
@@ -272,17 +314,69 @@ function renderDashboard(d){
       <div class="stat-grid">${tilesHtml}</div>
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏆</span>Principales fuentes (analista / broker · texto tal como aparece en el Excel)</div>
-      <div class="rank-list">${rankingHtml || '<span class="null">Sin datos suficientes.</span>'}</div>
+      <div class="stitle"><span class="stitle-icon">🏆</span>Expresiones de interés · Analista / Broker</div>
+      <div class="filtro-bar">
+        <div class="filtro-chips">${chipsHtml}</div>
+        <input type="text" class="filtro-search" id="dash-fuente-search" placeholder="Buscar nombre…" value="${escapeHtml(filtroFuenteTexto)}" oninput="filtrarFuentesTexto(this.value)">
+      </div>
+      <div class="rank-list" id="dash-ranking-list"></div>
     </div>
     <div class="sec">
       <div class="stitle"><span class="stitle-icon">✉️</span>Sin broker asignado, con correo de contacto</div>
       <div class="f"><div class="v">${fmtNum(d.sin_broker_con_mail)} expresiones no mencionan un broker pero sí tienen un correo de contacto registrado — candidatas para que Alexandra les dé seguimiento directo.</div></div>
     </div>
     <div class="f" style="margin-top:4px;">
-      <div class="v" style="color:var(--muted);font-size:11px;">La clasificación Broker / Jeffrey / Alexandra se calcula automáticamente buscando esos nombres o la palabra "broker" en el texto libre que llega del Excel — puede haber casos mal clasificados si el texto no sigue el formato habitual.</div>
+      <div class="v" style="color:var(--muted);font-size:11px;">La clasificación Broker / Jeffrey / Alexandra se calcula automáticamente a partir de la columna "broker" y del texto libre que llega del Excel — puede haber casos mal clasificados si el texto no sigue el formato habitual. Los nombres del ranking se agrupan y limpian de notas sueltas para que se lean mejor.</div>
     </div>
   `;
+
+  renderRanking();
+}
+
+/* Repinta solo la lista del ranking (según los filtros activos) sin
+   reconstruir el resto del dashboard — se llama al hacer clic en un chip
+   de categoría o al escribir en el buscador. */
+function renderRanking(){
+  const list = document.getElementById('dash-ranking-list');
+  if(!list) return;
+  const d = dashboardData || {};
+  const texto = filtroFuenteTexto.trim().toLowerCase();
+
+  const filtradas = dashboardFuentes.filter(f=>{
+    if(filtroFuenteCategoria !== 'todos' && f.categoria !== filtroFuenteCategoria) return false;
+    if(texto && !f.nombre.toLowerCase().includes(texto)) return false;
+    return true;
+  });
+
+  const maxFuente = Math.max(1, ...filtradas.map(f=>f.cantidad));
+  const totalGeneral = d.total_expresiones || 0;
+
+  const rankingHtml = filtradas.map(f=>{
+    const color = CATEGORIA_COLOR[f.categoria] || 'var(--pink-deep)';
+    const widthPct = Math.max(4, Math.round((f.cantidad/maxFuente)*100));
+    const pctTotal = totalGeneral ? ((f.cantidad/totalGeneral)*100).toFixed(1) : '0.0';
+    return `
+      <div class="rank-row">
+        <div class="rank-label" title="${escapeHtml(f.original.join(' · '))}">${escapeHtml(f.nombre)}</div>
+        <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${widthPct}%;background:${color}"></div></div>
+        <div class="rank-count">${fmtNum(f.cantidad)} <span class="rank-pct">(${pctTotal}%)</span></div>
+      </div>`;
+  }).join('');
+
+  list.innerHTML = rankingHtml || '<span class="null">Sin resultados para este filtro.</span>';
+}
+
+function filtrarFuentesCategoria(cat){
+  filtroFuenteCategoria = cat;
+  document.querySelectorAll('.filtro-chip').forEach(btn=>{
+    btn.classList.toggle('active', btn.textContent.trim() === CATEGORIA_LABEL[cat]);
+  });
+  renderRanking();
+}
+
+function filtrarFuentesTexto(valor){
+  filtroFuenteTexto = valor;
+  renderRanking();
 }
 
 function escapeHtml(s){
