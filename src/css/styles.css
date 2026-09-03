@@ -178,6 +178,23 @@ main{flex:1;padding:28px 32px;max-width:980px;margin:0 auto;width:100%;}
 @keyframes rowFadeIn{from{opacity:0;transform:translateX(-6px);}to{opacity:1;transform:translateX(0);}}
 @media(max-width:660px){.res-table{display:block;overflow-x:auto;white-space:nowrap;}}
 
+/* DASHBOARD DE EXPRESIONES DE INTERÉS */
+.stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;}
+@media(max-width:800px){.stat-grid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:480px){.stat-grid{grid-template-columns:1fr;}}
+.stat-tile{background:var(--off);border:1px solid var(--border);border-left:4px solid var(--tile-color,var(--pink-deep));border-radius:10px;padding:16px 18px;animation:resultFadeIn var(--dur-med) var(--ease) both;}
+.stat-value{font-family:var(--sans);font-weight:700;font-size:26px;color:var(--text);line-height:1.1;}
+.stat-label{font-size:11px;color:var(--muted);margin-top:6px;font-family:var(--body);line-height:1.4;}
+.stat-sub{font-size:11px;color:var(--tile-color,var(--pink-deep));font-weight:600;margin-top:4px;font-family:var(--sans);}
+
+.rank-list{display:flex;flex-direction:column;gap:10px;}
+.rank-row{display:grid;grid-template-columns:minmax(0,1fr) 2fr auto;align-items:center;gap:12px;animation:rowFadeIn var(--dur-med) var(--ease) both;}
+.rank-label{font-size:12px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-family:var(--body);}
+.rank-bar-track{background:var(--border);border-radius:4px;height:8px;overflow:hidden;}
+.rank-bar-fill{height:100%;border-radius:4px;transition:width var(--dur-med) var(--ease);}
+.rank-count{font-family:'Courier New',monospace;font-size:12px;font-weight:700;color:var(--pink-deep);min-width:34px;text-align:right;}
+@media(max-width:660px){.rank-row{grid-template-columns:1fr;gap:4px;}.rank-count{text-align:left;}}
+
 /* PANEL DE ADMINISTRACIÓN (pestaña a página completa, ya no modal) */
 .admin-page{max-width:1100px;margin:0 auto;padding:28px 32px;width:100%;}
 .admin-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}

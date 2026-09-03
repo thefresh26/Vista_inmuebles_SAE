@@ -36,6 +36,7 @@
 <div class="topbar" id="topbar" style="display:none;">
   <div class="tabs" id="tabs">
     <button class="tab-btn active" id="tab-btn-consultar" onclick="mostrarTab('consultar')">Consultar</button>
+    <button class="tab-btn" id="tab-btn-dashboard" onclick="mostrarTab('dashboard')" style="display:none;">Dashboard</button>
     <button class="tab-btn" id="tab-btn-admin" onclick="mostrarTab('administracion')" style="display:none;">Administración</button>
   </div>
   <button id="logout-btn" class="logout-btn" onclick="cerrarSesionManual()">Cerrar sesión</button>
@@ -66,6 +67,16 @@
     <div id="sb"></div>
     <div id="result"></div>
   </main>
+</div>
+
+<!-- PESTAÑA: DASHBOARD DE EXPRESIONES DE INTERÉS (admin y comercial) -->
+<div id="tab-dashboard" class="tab-panel">
+  <div class="admin-page">
+    <div class="admin-head">
+      <div class="login-title" style="margin-bottom:0;">Dashboard de Expresiones de Interés</div>
+    </div>
+    <div id="dash-content"><span class="null">Cargando estadísticas…</span></div>
+  </div>
 </div>
 
 <!-- PESTAÑA: ADMINISTRACIÓN DE USUARIOS (solo visible/accesible para rol admin) -->

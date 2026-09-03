@@ -65,6 +65,7 @@ function ocultarLoginOverlay(){
 function mostrarBarraSesion(){
   document.getElementById('topbar').style.display = 'flex';
   if(currentRole==='admin') document.getElementById('tab-btn-admin').style.display = 'inline-block';
+  if(currentRole==='comercial') document.getElementById('tab-btn-dashboard').style.display = 'inline-block';
 }
 
 /* ── CIERRE DE SESIÓN AUTOMÁTICO POR INACTIVIDAD ──
@@ -186,7 +187,7 @@ function adminMsg(texto, tipo){
    === 'admin'); aun así, se vuelve a validar en el servidor con cada
    acción, así que no pasa nada si alguien fuerza esta función a mano. */
 function mostrarTab(nombre){
-  ['consultar','administracion'].forEach(t=>{
+  ['consultar','dashboard','administracion'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('active', t===nombre);
     document.getElementById('tab-btn-'+(t==='administracion'?'admin':t)).classList.toggle('active', t===nombre);
   });
@@ -195,6 +196,97 @@ function mostrarTab(nombre){
     document.getElementById('admin-msg').textContent = '';
     cargarUsuarios();
   }
+  if(nombre==='dashboard'){
+    cargarDashboard();
+  }
+}
+
+/* ── DASHBOARD DE EXPRESIONES DE INTERÉS ──
+   Trae las estadísticas ya calculadas en Supabase (función RPC
+   estadisticas_expresiones_interes, ver 13_estadisticas_expresiones.sql)
+   y las pinta como tarjetas + un ranking. La clasificación
+   broker/Jeff/Ale se decide del lado del servidor buscando la palabra
+   "broker" en el texto de la columna analista: si aparece, se asume que
+   un broker externo trajo al cliente; si no, lo gestionó directamente el
+   analista (Jeffrey Guerrero o Alexandra Balza). Los casos que no
+   calzan en ninguna de las tres categorías (otro nombre de analista,
+   texto vacío, etc.) quedan en "Otros / sin clasificar". */
+let dashboardCargado = false;
+
+function fmtNum(n){
+  return new Intl.NumberFormat('es-CO').format(n||0);
+}
+
+async function cargarDashboard(){
+  const cont = document.getElementById('dash-content');
+  if(dashboardCargado) return; // ya se cargó una vez en esta sesión de página
+  cont.innerHTML = '<span class="null">Cargando estadísticas…</span>';
+  try{
+    const { data, error } = await supabaseClient.rpc('estadisticas_expresiones_interes');
+    if(error) throw error;
+    dashboardCargado = true;
+    renderDashboard(data);
+  }catch(e){
+    cont.innerHTML = `<div id="admin-msg" class="error" style="display:block;">No se pudieron cargar las estadísticas: ${e.message||e}</div>`;
+  }
+}
+
+function renderDashboard(d){
+  const cont = document.getElementById('dash-content');
+  const totalClasificado = (d.broker||0) + (d.jeff||0) + (d.ale||0) + (d.otros||0);
+  const pct = (n)=> totalClasificado ? Math.round((n/totalClasificado)*100) : 0;
+
+  const tiles = [
+    { label:'Expresiones de interés (total)', value:d.total_expresiones, color:'var(--pink-deep)' },
+    { label:'Folios (FMI) con expresión de interés', value:d.total_fmi_distintos, color:'var(--pink-deep)' },
+    { label:'Traídas por brokers', value:d.broker, sub:`${pct(d.broker)}% del total`, color:'var(--pink)' },
+    { label:'Gestionadas por Jeffrey Guerrero', value:d.jeff, sub:`${pct(d.jeff)}% del total`, color:'var(--blue)' },
+    { label:'Gestionadas por Alexandra Balza', value:d.ale, sub:`${pct(d.ale)}% del total`, color:'var(--orange)' },
+    { label:'Otros / sin clasificar', value:d.otros, sub:`${pct(d.otros)}% del total`, color:'var(--muted)' },
+  ];
+
+  const tilesHtml = tiles.map(t=>`
+    <div class="stat-tile" style="--tile-color:${t.color}">
+      <div class="stat-value">${fmtNum(t.value)}</div>
+      <div class="stat-label">${t.label}</div>
+      ${t.sub?`<div class="stat-sub">${t.sub}</div>`:''}
+    </div>
+  `).join('');
+
+  const maxFuente = Math.max(1, ...(d.top_fuentes||[]).map(f=>f.cantidad));
+  const rankingHtml = (d.top_fuentes||[]).map(f=>{
+    const esBroker = /broker/i.test(f.analista);
+    const color = esBroker ? 'var(--pink)' : 'var(--pink-deep)';
+    const widthPct = Math.max(4, Math.round((f.cantidad/maxFuente)*100));
+    return `
+      <div class="rank-row">
+        <div class="rank-label" title="${escapeHtml(f.analista)}">${escapeHtml(f.analista)}</div>
+        <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${widthPct}%;background:${color}"></div></div>
+        <div class="rank-count">${fmtNum(f.cantidad)}</div>
+      </div>`;
+  }).join('');
+
+  cont.innerHTML = `
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">📊</span>Resumen general</div>
+      <div class="stat-grid">${tilesHtml}</div>
+    </div>
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">🏆</span>Principales fuentes (analista / broker · texto tal como aparece en el Excel)</div>
+      <div class="rank-list">${rankingHtml || '<span class="null">Sin datos suficientes.</span>'}</div>
+    </div>
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">✉️</span>Sin broker asignado, con correo de contacto</div>
+      <div class="f"><div class="v">${fmtNum(d.sin_broker_con_mail)} expresiones no mencionan un broker pero sí tienen un correo de contacto registrado — candidatas para que Alexandra les dé seguimiento directo.</div></div>
+    </div>
+    <div class="f" style="margin-top:4px;">
+      <div class="v" style="color:var(--muted);font-size:11px;">La clasificación Broker / Jeffrey / Alexandra se calcula automáticamente buscando esos nombres o la palabra "broker" en el texto libre que llega del Excel — puede haber casos mal clasificados si el texto no sigue el formato habitual.</div>
+    </div>
+  `;
+}
+
+function escapeHtml(s){
+  return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 }
 
 async function llamarAdmin(payload){
