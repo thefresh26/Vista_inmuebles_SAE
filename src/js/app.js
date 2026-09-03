@@ -332,11 +332,11 @@ function renderDashboard(d){
       : normalizarAliasBroker(limpiarFuente(f.analista));
     /* Si lo unico que quedo despues de limpiar es un telefono (o algo
        parecido: solo digitos, espacios, +, () o guiones), no es un
-       nombre real -> se agrupan todos bajo una sola fila generica en
-       vez de ensuciar el ranking con numeros sueltos. El conteo sigue
-       sumando al total de "broker", solo cambia como se ve. */
+       nombre real -> se quita del ranking (no aporta nada para
+       identificar quien trajo el cliente). El total de "broker" en la
+       tarjeta de arriba no se toca, viene de Supabase aparte. */
     if(/^[\d\s.+()-]+$/.test(nombre) && /\d/.test(nombre)){
-      nombre = 'Broker sin nombre (teléfono)';
+      return;
     }
     const key = categoria + '|' + nombre.toLowerCase();
     const prev = mapa.get(key);
