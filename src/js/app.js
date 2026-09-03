@@ -268,7 +268,7 @@ function categorizarFuente(texto){
   return 'otros';
 }
 
-const CATEGORIA_LABEL = { todos:'Todos', broker:'Broker', jeff:'Jeffrey Guerrero', ale:'Alexandra Balza', otros:'Otros' };
+const CATEGORIA_LABEL = { todos:'Todos', broker:'Broker', analista:'Analista', jeff:'Jeffrey Guerrero', ale:'Alexandra Balza', otros:'Otros' };
 const CATEGORIA_COLOR = { broker:'var(--pink)', jeff:'var(--blue)', ale:'var(--orange)', otros:'var(--muted)' };
 
 async function cargarDashboard(){
@@ -345,7 +345,7 @@ function renderDashboard(d){
   });
   dashboardFuentes = Array.from(mapa.values()).sort((a,b)=>b.cantidad-a.cantidad);
 
-  const chipsHtml = ['todos','broker','jeff','ale','otros'].map(cat=>`
+  const chipsHtml = ['todos','broker','analista','otros'].map(cat=>`
     <button type="button" class="filtro-chip${filtroFuenteCategoria===cat?' active':''}" onclick="filtrarFuentesCategoria('${cat}')">${CATEGORIA_LABEL[cat]}</button>
   `).join('');
 
@@ -384,7 +384,13 @@ function renderRanking(){
   const texto = filtroFuenteTexto.trim().toLowerCase();
 
   const filtradas = dashboardFuentes.filter(f=>{
-    if(filtroFuenteCategoria !== 'todos' && f.categoria !== filtroFuenteCategoria) return false;
+    if(filtroFuenteCategoria === 'analista'){
+      // "Analista" agrupa a Jeffrey y Alexandra en un solo filtro (ya no
+      // se filtran por separado): cualquiera de los dos pasa.
+      if(f.categoria !== 'jeff' && f.categoria !== 'ale') return false;
+    } else if(filtroFuenteCategoria !== 'todos' && f.categoria !== filtroFuenteCategoria){
+      return false;
+    }
     if(texto && !f.nombre.toLowerCase().includes(texto)) return false;
     return true;
   });
