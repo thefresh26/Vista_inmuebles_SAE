@@ -296,7 +296,15 @@ function renderDashboard(d){
   const mapa = new Map();
   (d.top_fuentes||[]).forEach(f=>{
     const categoria = categorizarFuente(f.analista);
-    const nombre = limpiarFuente(f.analista);
+    /* Jeffrey y Alexandra siempre se agrupan bajo su nombre fijo: el texto
+       libre a veces los pone primero ("IC JEFFREY GUERRERO / ANDRES...")
+       y a veces despues del cliente ("IC FABIAN GALVIS / JEFFREY GUERRERO"),
+       asi que tomar "el primer pedazo" del texto a veces mostraba el
+       nombre del cliente en vez del analista. Para broker/otros si sirve
+       extraer el nombre limpio, porque ahi no hay un nombre fijo. */
+    const nombre = categoria === 'jeff' ? 'Jeffrey Guerrero'
+      : categoria === 'ale' ? 'Alexandra Balza'
+      : limpiarFuente(f.analista);
     const key = categoria + '|' + nombre.toLowerCase();
     const prev = mapa.get(key);
     if(prev){ prev.cantidad += f.cantidad; prev.original.push(f.analista); }
