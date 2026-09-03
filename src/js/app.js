@@ -313,9 +313,17 @@ function renderDashboard(d){
        nombre del cliente en vez del analista. Para broker/otros si sirve
        limpiar el texto (que ahora puede ser el nombre del broker real,
        ej. "KALIMA LOGISTICS", o un telefono suelto). */
-    const nombre = categoria === 'jeff' ? 'Jeffrey Guerrero'
+    let nombre = categoria === 'jeff' ? 'Jeffrey Guerrero'
       : categoria === 'ale' ? 'Alexandra Balza'
       : limpiarFuente(f.analista);
+    /* Si lo unico que quedo despues de limpiar es un telefono (o algo
+       parecido: solo digitos, espacios, +, () o guiones), no es un
+       nombre real -> se agrupan todos bajo una sola fila generica en
+       vez de ensuciar el ranking con numeros sueltos. El conteo sigue
+       sumando al total de "broker", solo cambia como se ve. */
+    if(/^[\d\s.+()-]+$/.test(nombre) && /\d/.test(nombre)){
+      nombre = 'Broker sin nombre (teléfono)';
+    }
     const key = categoria + '|' + nombre.toLowerCase();
     const prev = mapa.get(key);
     if(prev){ prev.cantidad += f.cantidad; prev.original.push(f.analista); }
