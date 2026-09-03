@@ -242,6 +242,20 @@ function limpiarFuente(texto){
   return t || String(texto||'').trim();
 }
 
+/* Mismo broker escrito de formas distintas en el Excel (typos, nombre
+   corto vs. razon social completa). Se detectaron revisando el listado
+   real del complemento de Excel (2026-09-03) — si aparece otro caso asi,
+   se agrega aqui. La clave va en minusculas. */
+const ALIAS_BROKER = {
+  'aliados inmobiliarios': 'Aliados Inmobiliarios de Colombia',
+  'aliados inmobiliarios de colombia': 'Aliados Inmobiliarios de Colombia',
+  'aliados inmobilirios': 'Aliados Inmobiliarios de Colombia',
+};
+function normalizarAliasBroker(nombre){
+  const alias = ALIAS_BROKER[String(nombre||'').trim().toLowerCase()];
+  return alias || nombre;
+}
+
 /* Misma idea que la función de Supabase (ver 13_estadisticas_expresiones.sql),
    pero aplicada solo al texto de "analista" porque el ranking se agrupa
    por ese texto y no tiene la columna "broker" por separado. Sirve para
@@ -315,7 +329,7 @@ function renderDashboard(d){
        ej. "KALIMA LOGISTICS", o un telefono suelto). */
     let nombre = categoria === 'jeff' ? 'Jeffrey Guerrero'
       : categoria === 'ale' ? 'Alexandra Balza'
-      : limpiarFuente(f.analista);
+      : normalizarAliasBroker(limpiarFuente(f.analista));
     /* Si lo unico que quedo despues de limpiar es un telefono (o algo
        parecido: solo digitos, espacios, +, () o guiones), no es un
        nombre real -> se agrupan todos bajo una sola fila generica en
