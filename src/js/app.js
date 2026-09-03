@@ -65,7 +65,7 @@ function ocultarLoginOverlay(){
 function mostrarBarraSesion(){
   document.getElementById('topbar').style.display = 'flex';
   if(currentRole==='admin') document.getElementById('tab-btn-admin').style.display = 'inline-block';
-  if(currentRole==='comercial') document.getElementById('tab-btn-dashboard').style.display = 'inline-block';
+  if(currentRole==='comercial' || currentRole==='admin') document.getElementById('tab-btn-dashboard').style.display = 'inline-block';
 }
 
 /* ── CIERRE DE SESIÓN AUTOMÁTICO POR INACTIVIDAD ──
