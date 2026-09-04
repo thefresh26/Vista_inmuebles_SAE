@@ -244,6 +244,7 @@ main{flex:1;padding:28px 32px;max-width:980px;margin:0 auto;width:100%;}
 @keyframes rowFlash{0%{background:rgba(26,184,122,.22);}100%{background:transparent;}}
 @keyframes rowRemoving{from{opacity:1;transform:scale(1);}to{opacity:0;transform:scale(.98);}}
 .role-select{background:var(--white);border:1.5px solid var(--border);border-radius:6px;padding:5px 8px;font-size:11px;font-family:var(--body);color:var(--text);transition:border-color var(--dur-fast) var(--ease);}
+.role-locked{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-family:var(--sans);font-weight:700;color:var(--pink-deep);background:rgba(212,20,90,.06);border:1.5px solid rgba(212,20,90,.2);border-radius:6px;padding:5px 8px;letter-spacing:.02em;cursor:default;}
 .au-del{background:none;border:1.5px solid rgba(224,53,53,.3);color:var(--red);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:var(--sans);font-weight:600;transition:background var(--dur-fast) var(--ease),transform var(--dur-fast) var(--ease);}
 .au-del:hover{background:rgba(224,53,53,.08);}
 .au-del:active{transform:scale(.96);}

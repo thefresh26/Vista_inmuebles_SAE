@@ -591,10 +591,12 @@ async function cargarUsuarios(flashUserId){
       return `<tr data-user-id="${u.id}" style="animation-delay:${delay}ms">
         <td class="vm">${esc(u.nombre)}<br><span class="null" style="font-size:12px">${esc(u.email)}</span>${esYo?' <span class="null">(tú)</span>':''}</td>
         <td>
-          <select class="role-select" onchange="cambiarRolUsuario('${u.id}', this.value, this)" ${esYo?'title="Tu propia cuenta"':''}>
+          ${u.role === 'admin'
+            ? `<span class="role-locked" title="El rol admin no se puede cambiar desde este panel, por seguridad.">🔒 ${ROLES_LABEL['admin']}</span>`
+            : `<select class="role-select" onchange="cambiarRolUsuario('${u.id}', this.value, this)" ${esYo?'title="Tu propia cuenta"':''}>
             ${u.role ? '' : '<option value="" selected disabled>Sin rol</option>'}
             ${opcionesRol(u.role)}
-          </select>
+          </select>`}
         </td>
         <td>${estadoChip}</td>
         <td>${u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('es-CO') : '<span class="null">Nunca</span>'}</td>
