@@ -577,6 +577,10 @@ function opcionesRol(rolActual){
   ).join('');
 }
 
+/* Unica cuenta que no se puede modificar desde el panel de admin,
+   pase lo que pase con su rol -- ver comentario en cargarUsuarios(). */
+const CUENTA_PROTEGIDA = 'soporte.tecnico@activosporcolombia.com';
+
 async function cargarUsuarios(flashUserId){
   const cont = document.getElementById('admin-users-table');
   cont.innerHTML = '<span class="null">Cargando usuarios…</span>';
@@ -584,6 +588,12 @@ async function cargarUsuarios(flashUserId){
     const data = await llamarAdmin({ action:'list' });
     const filas = (data.usuarios||[]).map((u,i)=>{
       const esYo = u.id === currentUser.id;
+      /* Unica cuenta protegida de verdad: la cuenta tecnica principal
+         (soporte.tecnico). Nadie -- ni ella misma, ni otro admin que
+         entre al panel -- puede cambiarle el rol, deshabilitarla,
+         resetearle la clave o eliminarla desde aqui. El resto de
+         cuentas admin (Heidy, etc.) se pueden modificar normalmente. */
+      const esCuentaProtegida = (u.email||'').trim().toLowerCase() === CUENTA_PROTEGIDA;
       const estadoChip = u.deshabilitado
         ? '<span class="chip ei-no">Deshabilitado</span>'
         : '<span class="chip ei-yes">Activo</span>';
@@ -591,8 +601,8 @@ async function cargarUsuarios(flashUserId){
       return `<tr data-user-id="${u.id}" style="animation-delay:${delay}ms">
         <td class="vm">${esc(u.nombre)}<br><span class="null" style="font-size:12px">${esc(u.email)}</span>${esYo?' <span class="null">(tú)</span>':''}</td>
         <td>
-          ${u.role === 'admin'
-            ? `<span class="role-locked" title="El rol admin no se puede cambiar desde este panel, por seguridad.">🔒 ${ROLES_LABEL['admin']}</span>`
+          ${esCuentaProtegida
+            ? `<span class="role-locked" title="Esta es la cuenta tecnica principal -- su rol no se puede cambiar desde aqui.">🔒 ${ROLES_LABEL[u.role]||u.role}</span>`
             : `<select class="role-select" onchange="cambiarRolUsuario('${u.id}', this.value, this)" ${esYo?'title="Tu propia cuenta"':''}>
             ${u.role ? '' : '<option value="" selected disabled>Sin rol</option>'}
             ${opcionesRol(u.role)}
@@ -601,11 +611,11 @@ async function cargarUsuarios(flashUserId){
         <td>${estadoChip}</td>
         <td>${u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('es-CO') : '<span class="null">Nunca</span>'}</td>
         <td>
-          ${esYo
-            ? `<span class="null" title="No puedes deshabilitar, resetear ni eliminar tu propia cuenta desde aqui, por seguridad.">Sin acciones (tu cuenta)</span>`
+          ${esCuentaProtegida
+            ? `<span class="null" title="Esta es la cuenta tecnica principal -- no se puede deshabilitar, resetear ni eliminar desde aqui.">Cuenta protegida</span>`
             : `<button class="au-reset" onclick="toggleEstadoUsuario('${u.id}','${esc(u.nombre)}', ${u.deshabilitado})">${u.deshabilitado?'Habilitar':'Deshabilitar'}</button>
           <button class="au-reset" onclick="resetearPasswordUsuario('${u.id}','${esc(u.nombre)}', this)">Nueva clave</button>
-          <button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.nombre)}', this)">Eliminar</button>`}
+          ${esYo?'':`<button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.nombre)}', this)">Eliminar</button>`}`}
         </td>
       </tr>`;
     }).join('');
