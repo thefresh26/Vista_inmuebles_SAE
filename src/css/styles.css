@@ -204,6 +204,24 @@ main{flex:1;padding:28px 32px;max-width:980px;margin:0 auto;width:100%;}
 .rank-pct{font-weight:400;color:var(--muted);}
 @media(max-width:660px){.rank-row{grid-template-columns:1fr;gap:4px;}.rank-count{text-align:left;}.filtro-bar{flex-direction:column;align-items:stretch;}.filtro-search{min-width:0;}}
 
+.dash-sync-info{font-size:11px;color:var(--muted);margin-bottom:10px;font-family:var(--body);}
+
+.donut-wrap{display:flex;align-items:center;gap:24px;flex-wrap:wrap;margin-top:18px;padding-top:18px;border-top:1px solid var(--border);}
+.donut-svg{width:140px;height:140px;flex:none;}
+.donut-svg circle{transition:stroke-dasharray var(--dur-med) var(--ease);}
+.donut-center-num{font-family:var(--sans);font-weight:700;font-size:20px;fill:var(--text);}
+.donut-center-label{font-family:var(--body);font-size:8px;fill:var(--muted);text-transform:uppercase;letter-spacing:.04em;}
+.donut-legend{display:flex;flex-direction:column;gap:8px;flex:1;min-width:180px;}
+.donut-leg-item{font-size:12px;color:var(--text);font-family:var(--body);display:flex;align-items:center;gap:8px;}
+.donut-swatch{width:10px;height:10px;border-radius:3px;flex:none;}
+
+.filtro-bar-derecha{display:flex;align-items:center;gap:8px;flex-wrap:wrap;}
+.filtro-orden{font-family:var(--body);font-size:12px;color:var(--text);background:var(--off);border:1px solid var(--border);border-radius:8px;padding:7px 10px;cursor:pointer;}
+.filtro-orden:focus{outline:none;border-color:var(--pink-deep);}
+.btn-exportar{font-family:var(--sans);font-size:12px;font-weight:600;color:var(--pink-deep);background:var(--white);border:1.5px solid rgba(212,20,90,.3);border-radius:8px;padding:7px 12px;cursor:pointer;white-space:nowrap;transition:all var(--dur-fast) var(--ease);}
+.btn-exportar:hover{background:rgba(212,20,90,.06);border-color:var(--pink-deep);}
+@media(max-width:660px){.donut-wrap{flex-direction:column;align-items:flex-start;}.filtro-bar-derecha{width:100%;}.filtro-orden{flex:1;}}
+
 /* PANEL DE ADMINISTRACIÓN (pestaña a página completa, ya no modal) */
 .admin-page{max-width:1100px;margin:0 auto;padding:28px 32px;width:100%;}
 .admin-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}

@@ -216,6 +216,8 @@ let dashboardData = null;      // último JSON traído de Supabase (para recalcu
 let dashboardFuentes = [];     // top_fuentes ya limpio/agrupado por nombre
 let filtroFuenteCategoria = 'todos';
 let filtroFuenteTexto = '';
+let ordenRanking = 'cantidad';  // 'cantidad' (mayor a menor, por defecto) o 'alfabetico' (A-Z)
+let ultimoRankingFiltrado = []; // lo que se ve ahora mismo en la lista, para exportar tal cual
 
 function fmtNum(n){
   return new Intl.NumberFormat('es-CO').format(n||0);
@@ -306,6 +308,46 @@ function animarContadores(scope){
   });
 }
 
+/* Donut SVG con la proporcion Broker/Jeffrey/Alexandra/Steven/Otros.
+   Mismos colores que las tarjetas y el ranking (nunca uno nuevo), para
+   que todo el dashboard se vea consistente. Si todavia no hay nada
+   clasificado, no dibuja nada. */
+function renderDonut(d, totalClasificado){
+  if(!totalClasificado) return '';
+  const segmentos = [
+    { valor:d.broker||0, color:'var(--pink)', etiqueta:'Broker' },
+    { valor:d.jeff||0, color:'var(--blue)', etiqueta:'JEFFREY GUERRERO' },
+    { valor:d.ale||0, color:'var(--orange)', etiqueta:'ALEXANDRA BALZA' },
+    { valor:d.steven||0, color:'var(--green)', etiqueta:'STEVEN VALENCIA' },
+    { valor:d.otros||0, color:'var(--muted)', etiqueta:'Otros' },
+  ];
+  const r = 50, cx = 60, cy = 60, grosor = 18;
+  const circunferencia = 2 * Math.PI * r;
+  let acumulado = 0;
+  const conValor = segmentos.filter(s=>s.valor>0);
+  const circulos = conValor.map(s=>{
+    const pct = s.valor / totalClasificado;
+    const largo = pct * circunferencia;
+    const offset = -(acumulado * circunferencia);
+    acumulado += pct;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${grosor}" stroke-dasharray="${largo} ${circunferencia}" stroke-dashoffset="${offset}"/>`;
+  }).join('');
+  const leyenda = conValor.map(s=>{
+    const pct = Math.round((s.valor/totalClasificado)*100);
+    return `<div class="donut-leg-item"><span class="donut-swatch" style="background:${s.color}"></span>${s.etiqueta} · ${pct}%</div>`;
+  }).join('');
+  return `
+    <div class="donut-wrap">
+      <svg viewBox="0 0 120 120" class="donut-svg" role="img" aria-label="Distribucion de expresiones de interes por broker y analista">
+        <g transform="rotate(-90 ${cx} ${cy})">${circulos}</g>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle" class="donut-center-num">${fmtNum(totalClasificado)}</text>
+        <text x="${cx}" y="${cy+12}" text-anchor="middle" class="donut-center-label">clasificadas</text>
+      </svg>
+      <div class="donut-legend">${leyenda}</div>
+    </div>
+  `;
+}
+
 function renderDashboard(d){
   const cont = document.getElementById('dash-content');
   dashboardData = d;
@@ -372,16 +414,29 @@ function renderDashboard(d){
     <button type="button" class="filtro-chip${filtroFuenteCategoria===cat?' active':''}" onclick="filtrarFuentesCategoria('${cat}')">${CATEGORIA_LABEL[cat]}</button>
   `).join('');
 
+  const ultimaSyncHtml = (currentRole === 'admin' && d.ultima_actualizacion)
+    ? `<div class="dash-sync-info">Última sincronización con el Excel: ${new Date(d.ultima_actualizacion).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})}</div>`
+    : '';
+
   cont.innerHTML = `
     <div class="sec">
       <div class="stitle"><span class="stitle-icon">📊</span>Resumen general</div>
+      ${ultimaSyncHtml}
       <div class="stat-grid">${tilesHtml}</div>
+      ${renderDonut(d, totalClasificado)}
     </div>
     <div class="sec">
       <div class="stitle"><span class="stitle-icon">🏆</span>Expresiones de interés · Analista / Broker</div>
       <div class="filtro-bar">
         <div class="filtro-chips">${chipsHtml}</div>
-        <input type="text" class="filtro-search" id="dash-fuente-search" placeholder="Buscar nombre…" value="${escapeHtml(filtroFuenteTexto)}" oninput="filtrarFuentesTexto(this.value)">
+        <div class="filtro-bar-derecha">
+          <select class="filtro-orden" id="dash-orden" onchange="cambiarOrdenRanking(this.value)">
+            <option value="cantidad"${ordenRanking==='cantidad'?' selected':''}>Mayor a menor</option>
+            <option value="alfabetico"${ordenRanking==='alfabetico'?' selected':''}>A - Z</option>
+          </select>
+          <input type="text" class="filtro-search" id="dash-fuente-search" placeholder="Buscar nombre…" value="${escapeHtml(filtroFuenteTexto)}" oninput="filtrarFuentesTexto(this.value)">
+          <button type="button" class="btn-exportar" onclick="exportarRankingCSV()">⬇ Exportar CSV</button>
+        </div>
       </div>
       <div class="rank-list" id="dash-ranking-list"></div>
     </div>
@@ -418,6 +473,12 @@ function renderRanking(){
     if(texto && !f.nombre.toLowerCase().includes(texto)) return false;
     return true;
   });
+
+  if(ordenRanking === 'alfabetico'){
+    filtradas.sort((a,b)=>a.nombre.localeCompare(b.nombre,'es'));
+  } // con 'cantidad' no hace falta reordenar: dashboardFuentes ya viene de mayor a menor
+
+  ultimoRankingFiltrado = filtradas;
 
   const maxFuente = Math.max(1, ...filtradas.map(f=>f.cantidad));
   const totalGeneral = d.total_expresiones || 0;
@@ -456,6 +517,37 @@ function filtrarFuentesCategoria(cat){
 function filtrarFuentesTexto(valor){
   filtroFuenteTexto = valor;
   renderRanking();
+}
+
+function cambiarOrdenRanking(valor){
+  ordenRanking = valor;
+  renderRanking();
+}
+
+/* Descarga como CSV exactamente lo que se ve en el ranking en este
+   momento (con los filtros, la busqueda y el orden ya aplicados) --
+   no recalcula ni cambia nada, solo exporta lo que ya esta en pantalla. */
+function exportarRankingCSV(){
+  if(!ultimoRankingFiltrado.length){
+    alert('No hay datos para exportar con el filtro actual.');
+    return;
+  }
+  const totalGeneral = (dashboardData && dashboardData.total_expresiones) || 0;
+  const filas = [['Nombre','Categoria','Cantidad','Porcentaje del total']];
+  ultimoRankingFiltrado.forEach(f=>{
+    const pct = totalGeneral ? ((f.cantidad/totalGeneral)*100).toFixed(1) : '0.0';
+    filas.push([f.nombre, CATEGORIA_LABEL[f.categoria]||f.categoria, f.cantidad, pct+'%']);
+  });
+  const csv = filas.map(fila=>fila.map(v=>`"${String(v).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff'+csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `ranking_expresiones_interes_${new Date().toISOString().slice(0,10)}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
 }
 
 function escapeHtml(s){
