@@ -191,7 +191,7 @@ main{flex:1;padding:28px 32px;max-width:980px;margin:0 auto;width:100%;}
 .filtro-chips{display:flex;flex-wrap:wrap;gap:6px;}
 .filtro-chip{font-family:var(--sans);font-size:11px;font-weight:600;color:var(--muted);background:var(--off);border:1px solid var(--border);border-radius:999px;padding:6px 12px;cursor:pointer;transition:all var(--dur-fast) var(--ease);}
 .filtro-chip:hover{color:var(--text);border-color:var(--pink-deep);}
-.filtro-chip.active{color:#fff;background:var(--pink-deep);border-color:var(--pink-deep);}
+.filtro-chip.active{color:#fff;background:var(--pink-deep);border-color:var(--pink-deep);transform:scale(1.06);box-shadow:0 3px 10px rgba(212,20,90,.35);}
 .filtro-search{font-family:var(--body);font-size:12px;color:var(--text);background:var(--off);border:1px solid var(--border);border-radius:8px;padding:7px 12px;min-width:180px;}
 .filtro-search:focus{outline:none;border-color:var(--pink-deep);}
 

@@ -285,6 +285,27 @@ async function cargarDashboard(){
   }
 }
 
+/* Anima los numeros de las tarjetas de resumen subiendo desde 0 hasta el
+   valor real (efecto "contador"). Es puramente visual: el valor final que
+   se muestra siempre es exactamente el mismo dato que llega de Supabase,
+   esto no recalcula ni modifica nada. */
+function animarContadores(scope){
+  const els = (scope||document).querySelectorAll('.stat-value[data-count-to]');
+  els.forEach(el=>{
+    const destino = Number(el.getAttribute('data-count-to'))||0;
+    const duracion = 700;
+    const inicio = performance.now();
+    function paso(ahora){
+      const t = Math.min(1, (ahora-inicio)/duracion);
+      const suavizado = 1 - Math.pow(1-t, 3); // ease-out cubico
+      el.textContent = fmtNum(Math.round(destino*suavizado));
+      if(t < 1) requestAnimationFrame(paso);
+      else el.textContent = fmtNum(destino);
+    }
+    requestAnimationFrame(paso);
+  });
+}
+
 function renderDashboard(d){
   const cont = document.getElementById('dash-content');
   dashboardData = d;
@@ -303,7 +324,7 @@ function renderDashboard(d){
 
   const tilesHtml = tiles.map(t=>`
     <div class="stat-tile" style="--tile-color:${t.color}">
-      <div class="stat-value">${fmtNum(t.value)}</div>
+      <div class="stat-value" data-count-to="${t.value||0}">0</div>
       <div class="stat-label">${t.label}</div>
       ${t.sub?`<div class="stat-sub">${t.sub}</div>`:''}
     </div>
@@ -373,6 +394,7 @@ function renderDashboard(d){
     </div>
   `;
 
+  animarContadores(cont);
   renderRanking();
 }
 
@@ -407,12 +429,20 @@ function renderRanking(){
     return `
       <div class="rank-row">
         <div class="rank-label" title="${escapeHtml(f.original.join(' · '))}">${escapeHtml(f.nombre)}</div>
-        <div class="rank-bar-track"><div class="rank-bar-fill" style="width:${widthPct}%;background:${color}"></div></div>
+        <div class="rank-bar-track"><div class="rank-bar-fill" data-width="${widthPct}" style="width:0%;background:${color}"></div></div>
         <div class="rank-count">${fmtNum(f.cantidad)} <span class="rank-pct">(${pctTotal}%)</span></div>
       </div>`;
   }).join('');
 
   list.innerHTML = rankingHtml || '<span class="null">Sin resultados para este filtro.</span>';
+
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      list.querySelectorAll('.rank-bar-fill[data-width]').forEach(el=>{
+        el.style.width = el.getAttribute('data-width') + '%';
+      });
+    });
+  });
 }
 
 function filtrarFuentesCategoria(cat){
