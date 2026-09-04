@@ -208,7 +208,7 @@ function mostrarTab(nombre){
    broker/Jeff/Ale se decide del lado del servidor buscando la palabra
    "broker" en el texto de la columna analista: si aparece, se asume que
    un broker externo trajo al cliente; si no, lo gestionó directamente el
-   analista (Jeffrey Guerrero o Alexandra Balza). Los casos que no
+   analista (JEFFREY GUERRERO o ALEXANDRA BALZA). Los casos que no
    calzan en ninguna de las tres categorías (otro nombre de analista,
    texto vacío, etc.) quedan en "Otros / sin clasificar". */
 let dashboardCargado = false;
@@ -268,7 +268,7 @@ function categorizarFuente(texto){
   return 'otros';
 }
 
-const CATEGORIA_LABEL = { todos:'Todos', broker:'Broker', analista:'Analista', jeff:'Jeffrey Guerrero', ale:'Alexandra Balza', steven:'Steven Valencia', otros:'Otros' };
+const CATEGORIA_LABEL = { todos:'Todos', broker:'Broker', analista:'Analista', jeff:'JEFFREY GUERRERO', ale:'ALEXANDRA BALZA', steven:'STEVEN VALENCIA', otros:'Otros' };
 const CATEGORIA_COLOR = { broker:'var(--pink)', jeff:'var(--blue)', ale:'var(--orange)', steven:'var(--green)', otros:'var(--muted)' };
 
 async function cargarDashboard(){
@@ -295,9 +295,9 @@ function renderDashboard(d){
     { label:'Expresiones de interés (total)', value:d.total_expresiones, color:'var(--pink-deep)' },
     { label:'Folios (FMI) con expresión de interés', value:d.total_fmi_distintos, color:'var(--pink-deep)' },
     { label:'Traídas por brokers', value:d.broker, sub:`${pct(d.broker)}% del total`, color:'var(--pink)' },
-    { label:'Gestionadas por Jeffrey Guerrero', value:d.jeff, sub:`${pct(d.jeff)}% del total`, color:'var(--blue)' },
-    { label:'Gestionadas por Alexandra Balza', value:d.ale, sub:`${pct(d.ale)}% del total`, color:'var(--orange)' },
-    { label:'Gestionadas por Steven Valencia', value:d.steven, sub:`${pct(d.steven)}% del total`, color:'var(--green)' },
+    { label:'Gestionadas por JEFFREY GUERRERO', value:d.jeff, sub:`${pct(d.jeff)}% del total`, color:'var(--blue)' },
+    { label:'Gestionadas por ALEXANDRA BALZA', value:d.ale, sub:`${pct(d.ale)}% del total`, color:'var(--orange)' },
+    { label:'Gestionadas por STEVEN VALENCIA', value:d.steven, sub:`${pct(d.steven)}% del total`, color:'var(--green)' },
     { label:'Otros / sin clasificar', value:d.otros, sub:`${pct(d.otros)}% del total`, color:'var(--muted)' },
   ];
 
@@ -328,9 +328,9 @@ function renderDashboard(d){
        nombre del cliente en vez del analista. Para broker/otros si sirve
        limpiar el texto (que ahora puede ser el nombre del broker real,
        ej. "KALIMA LOGISTICS", o un telefono suelto). */
-    let nombre = categoria === 'jeff' ? 'Jeffrey Guerrero'
-      : categoria === 'ale' ? 'Alexandra Balza'
-      : categoria === 'steven' ? 'Steven Valencia'
+    let nombre = categoria === 'jeff' ? 'JEFFREY GUERRERO'
+      : categoria === 'ale' ? 'ALEXANDRA BALZA'
+      : categoria === 'steven' ? 'STEVEN VALENCIA'
       : normalizarAliasBroker(limpiarFuente(f.analista));
     /* Si lo unico que quedo despues de limpiar es un telefono (o algo
        parecido: solo digitos, espacios, +, () o guiones), no es un
