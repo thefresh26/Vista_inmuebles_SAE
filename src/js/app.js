@@ -601,9 +601,11 @@ async function cargarUsuarios(flashUserId){
         <td>${estadoChip}</td>
         <td>${u.last_sign_in_at ? new Date(u.last_sign_in_at).toLocaleDateString('es-CO') : '<span class="null">Nunca</span>'}</td>
         <td>
-          <button class="au-reset" onclick="toggleEstadoUsuario('${u.id}','${esc(u.nombre)}', ${u.deshabilitado})">${u.deshabilitado?'Habilitar':'Deshabilitar'}</button>
+          ${esYo
+            ? `<span class="null" title="No puedes deshabilitar, resetear ni eliminar tu propia cuenta desde aqui, por seguridad.">Sin acciones (tu cuenta)</span>`
+            : `<button class="au-reset" onclick="toggleEstadoUsuario('${u.id}','${esc(u.nombre)}', ${u.deshabilitado})">${u.deshabilitado?'Habilitar':'Deshabilitar'}</button>
           <button class="au-reset" onclick="resetearPasswordUsuario('${u.id}','${esc(u.nombre)}', this)">Nueva clave</button>
-          ${esYo?'':`<button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.nombre)}', this)">Eliminar</button>`}
+          <button class="au-del" onclick="eliminarUsuario('${u.id}','${esc(u.nombre)}', this)">Eliminar</button>`}
         </td>
       </tr>`;
     }).join('');
