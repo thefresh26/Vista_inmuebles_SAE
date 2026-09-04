@@ -247,9 +247,9 @@ function limpiarFuente(texto){
    real del complemento de Excel (2026-09-03) — si aparece otro caso asi,
    se agrega aqui. La clave va en minusculas. */
 const ALIAS_BROKER = {
-  'aliados inmobiliarios': 'Aliados Inmobiliarios de Colombia',
-  'aliados inmobiliarios de colombia': 'Aliados Inmobiliarios de Colombia',
-  'aliados inmobilirios': 'Aliados Inmobiliarios de Colombia',
+  'aliados inmobiliarios': 'ALIADOS INMOBILIARIOS DE COLOMBIA',
+  'aliados inmobiliarios de colombia': 'ALIADOS INMOBILIARIOS DE COLOMBIA',
+  'aliados inmobilirios': 'ALIADOS INMOBILIARIOS DE COLOMBIA',
 };
 function normalizarAliasBroker(nombre){
   const alias = ALIAS_BROKER[String(nombre||'').trim().toLowerCase()];
