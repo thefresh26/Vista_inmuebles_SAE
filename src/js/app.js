@@ -499,10 +499,10 @@ function renderDashboard(d){
       <div class="stitle"><span class="stitle-icon">📊</span>Resumen general</div>
       ${ultimaSyncHtml}
       <div class="stat-grid">${tilesHtml}</div>
-      ${renderDonut(d, totalClasificado)}
     </div>
     <div class="sec">
       <div class="stitle"><span class="stitle-icon">🏆</span>Expresiones de interés · Analista / Broker</div>
+      ${renderDonut(d, totalClasificado)}
       <div class="filtro-bar">
         <div class="filtro-chips">${chipsHtml}</div>
         <div class="filtro-bar-derecha">
