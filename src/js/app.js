@@ -389,9 +389,9 @@ function renderDonutGenerico(segmentos, total){
 const PALETA_ESTADOS = ['var(--pink-deep)','var(--blue)','var(--green)','var(--orange)','var(--magenta)','var(--pink2)'];
 const TOP_DONUT_ESTADOS = 6;
 
-function renderEstadoActibid(d){
-  const items = d.top_estado_actibid || [];
-  const total = d.con_estado_actibid || 0;
+function renderEstadoActibid(items, total){
+  items = items || [];
+  total = total || 0;
   if(!items.length || !total){
     return '<div class="f"><div class="v" style="color:var(--muted);">Todavía no hay datos de "Estado de Publicación" cargados desde el Excel.</div></div>';
   }
@@ -520,8 +520,12 @@ function renderDashboard(d){
       <div class="rank-list" id="dash-ranking-list"></div>
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación</div>
-      ${renderEstadoActibid(d)}
+      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación - Expresiones de interés</div>
+      ${renderEstadoActibid(d.top_estado_actibid, d.con_estado_actibid)}
+    </div>
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación - Folios de Matrícula Inmobiliaria</div>
+      ${renderEstadoActibid(d.top_estado_actibid_por_folio, d.con_estado_actibid_por_folio)}
     </div>
     <div class="sec">
       <div class="stitle"><span class="stitle-icon">✉️</span>Sin broker asignado, con correo de contacto</div>
