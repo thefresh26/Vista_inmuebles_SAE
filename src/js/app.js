@@ -820,6 +820,14 @@ function dropdownInteres(total){
   return `<span class="chip ei-yes">✓ ${total} interesado${total>1?'s':''}</span>`;
 }
 
+/* Estado ACTIBID: texto libre por FMI (viene de la columna "ESTADO
+   ACTIBID" del Excel). Se muestra tal cual llega, en mayúsculas para que
+   se vea uniforme con el resto de la tabla; sin dato -> "Sin dato". */
+function estadoActibidHtml(estado){
+  if(nul(estado)) return '<span class="null">Sin dato</span>';
+  return `<span class="chip cb">${esc(String(estado).trim().toUpperCase())}</span>`;
+}
+
 /* Uniformidad de datos: el FMI siempre se muestra en mayúsculas y sin
    espacios extra, sin importar cómo esté cargado en la base. */
 function fmtFmi(v){ return nul(v) ? '—' : String(v).trim().toUpperCase(); }
@@ -888,7 +896,7 @@ async function buscar(){
       if(!r){
         return `<tr class="row-empty" style="animation-delay:${delay}ms">
           <td class="vm">${esc(f)}</td>
-          <td colspan="4"><span class="null">⚠ No se encontró este folio en la base de datos</span></td>
+          <td colspan="5"><span class="null">⚠ No se encontró este folio en la base de datos</span></td>
         </tr>`;
       }
       const esUnidad=!nul(r.codigo_subasta);
@@ -903,6 +911,7 @@ async function buscar(){
         <td>${unidadHtml}</td>
         <td>${enlaceHtml}</td>
         <td>${dropdownInteres(r.interesados)}</td>
+        <td>${estadoActibidHtml(r.estado_actibid)}</td>
         <td>${documentosHtml(r.documentos)}</td>
       </tr>`;
     }).join('');
@@ -923,6 +932,7 @@ async function buscar(){
             <th>Unidad</th>
             <th>Enlace</th>
             <th>Expresión de Interés</th>
+            <th>Estado ACTIBID</th>
             <th>Documento</th>
           </tr>
         </thead>

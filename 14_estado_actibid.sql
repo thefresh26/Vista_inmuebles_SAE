@@ -11,5 +11,13 @@
 -- "Borrador", y varios más). Se guarda tal cual llega del Excel; la
 -- limpieza/agrupación para el ranking se hace en la función de
 -- estadísticas (mayúsculas + "Sin dato" cuando está vacía).
+--
+-- Nota: en una corrida anterior el script de sincronización no encontró
+-- esta columna en SEMAFORO_ANALISTAS (ver WARNING en el log con la lista
+-- completa de encabezados reales de esa hoja). El script ahora hace un
+-- matching más flexible (ignora tildes/espacios/saltos de línea) y, si
+-- sigue sin encontrarla, imprime en el log cualquier encabezado que
+-- contenga "ACTIBID" para confirmar el nombre exacto o descartar que la
+-- columna esté en otra hoja del mismo Excel.
 
 alter table expresiones_interes add column if not exists estado_actibid text;
