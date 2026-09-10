@@ -148,6 +148,16 @@ as $$
     'total_expresiones', (select count(*) from expresiones_interes),
     'total_fmi_distintos', (select count(distinct fmi) from expresiones_interes),
     'total_clientes_nombrados', (select count(distinct cliente) from expresiones_interes where cliente is not null and btrim(cliente) <> ''),
+    -- FMI con expresion de interes que NO tienen ningun documento (carta de
+    -- manifestacion de intencion de compra) cargado en documentos_fmi. Pedido
+    -- por el director comercial para darle seguimiento a los que faltan.
+    'total_fmi_sin_documento', (
+      select count(distinct e.fmi)
+      from expresiones_interes e
+      where not exists (
+        select 1 from public.documentos_fmi d where upper(d.fmi) = upper(e.fmi)
+      )
+    ),
     'broker', (select count(*) from clasificado where es_broker),
     'jeff', (select count(*) from clasificado where not es_broker and es_jeff),
     'ale', (select count(*) from clasificado where not es_broker and not es_jeff and es_ale),

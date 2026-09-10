@@ -430,9 +430,12 @@ function renderDashboard(d){
   const totalClasificado = (d.broker||0) + (d.jeff||0) + (d.ale||0) + (d.steven||0) + (d.otros||0);
   const pct = (n)=> totalClasificado ? Math.round((n/totalClasificado)*100) : 0;
 
+  const pctSobreFmi = (n)=> d.total_fmi_distintos ? Math.round((n/d.total_fmi_distintos)*100) : 0;
+
   const tiles = [
     { label:'Expresiones de interés (total)', value:d.total_expresiones, color:'var(--pink-deep)' },
     { label:'Folios (FMI) con expresión de interés', value:d.total_fmi_distintos, color:'var(--pink-deep)' },
+    { label:'Folios (FMI) sin documento', value:d.total_fmi_sin_documento, sub:`${pctSobreFmi(d.total_fmi_sin_documento)}% de los folios con expresión de interés`, color:'var(--magenta)' },
     { label:'Traídas por brokers', value:d.broker, sub:`${pct(d.broker)}% del total`, color:'var(--pink)' },
     { label:'Gestionadas por JEFFREY GUERRERO', value:d.jeff, sub:`${pct(d.jeff)}% del total`, color:'var(--blue)' },
     { label:'Gestionadas por ALEXANDRA BALZA', value:d.ale, sub:`${pct(d.ale)}% del total`, color:'var(--orange)' },
