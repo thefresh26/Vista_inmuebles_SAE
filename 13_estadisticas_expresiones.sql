@@ -157,9 +157,21 @@ as $$
     'ultima_actualizacion', (select max(created_at) from expresiones_interes),
     'con_estado_actibid', (select count(*) from expresiones_interes where estado_actibid is not null and btrim(estado_actibid) <> ''),
     'top_estado_actibid', (select coalesce(json_agg(t), '[]'::json) from (
-        select coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO') as estado, count(*) as cantidad
+        select
+          -- "VENDIDO" es el mismo estado que "SUBASTA FINALIZADA" (nombre
+          -- viejo/alterno usado por algunos analistas en el Excel), asi que
+          -- se agrupan juntos en vez de aparecer como filas separadas.
+          case
+            when upper(btrim(estado_actibid)) = 'VENDIDO' then 'SUBASTA FINALIZADA'
+            else coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+          end as estado,
+          count(*) as cantidad
         from expresiones_interes
-        group by coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+        group by
+          case
+            when upper(btrim(estado_actibid)) = 'VENDIDO' then 'SUBASTA FINALIZADA'
+            else coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+          end
         order by count(*) desc
         limit 30
     ) t),

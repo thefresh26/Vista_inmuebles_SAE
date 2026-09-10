@@ -825,7 +825,12 @@ function dropdownInteres(total){
    se vea uniforme con el resto de la tabla; sin dato -> "Sin dato". */
 function estadoActibidHtml(estado){
   if(nul(estado)) return '<span class="null">Sin dato</span>';
-  return `<span class="chip cb">${esc(String(estado).trim().toUpperCase())}</span>`;
+  // "VENDIDO" es el mismo estado que "SUBASTA FINALIZADA" (nombre viejo/
+  // alterno usado por algunos analistas en el Excel) -- se muestran igual
+  // para que sea consistente con la sección Estado ACTIBID del dashboard.
+  let texto = String(estado).trim().toUpperCase();
+  if(texto === 'VENDIDO') texto = 'SUBASTA FINALIZADA';
+  return `<span class="chip cb">${esc(texto)}</span>`;
 }
 
 /* Uniformidad de datos: el FMI siempre se muestra en mayúsculas y sin
