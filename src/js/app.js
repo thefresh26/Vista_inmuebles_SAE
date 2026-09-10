@@ -393,7 +393,7 @@ function renderEstadoActibid(d){
   const items = d.top_estado_actibid || [];
   const total = d.con_estado_actibid || 0;
   if(!items.length || !total){
-    return '<div class="f"><div class="v" style="color:var(--muted);">Todavía no hay datos de "Estado ACTIBID" cargados desde el Excel.</div></div>';
+    return '<div class="f"><div class="v" style="color:var(--muted);">Todavía no hay datos de "Estado de Publicación" cargados desde el Excel.</div></div>';
   }
 
   const principales = items.slice(0, TOP_DONUT_ESTADOS);
@@ -520,7 +520,7 @@ function renderDashboard(d){
       <div class="rank-list" id="dash-ranking-list"></div>
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado ACTIBID</div>
+      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación</div>
       ${renderEstadoActibid(d)}
     </div>
     <div class="sec">
@@ -940,7 +940,7 @@ async function buscar(){
             <th>Unidad</th>
             <th>Enlace</th>
             <th>Expresión de Interés</th>
-            <th>Estado ACTIBID</th>
+            <th>Estado de Publicación</th>
             <th>Documento</th>
           </tr>
         </thead>
