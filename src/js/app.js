@@ -348,6 +348,82 @@ function renderDonut(d, totalClasificado){
   `;
 }
 
+/* Version generica del donut: recibe los segmentos ya armados
+   ({valor,color,etiqueta}) en vez de calcularlos a partir de las
+   categorias fijas de broker/analista. La usa renderEstadoActibid(). */
+function renderDonutGenerico(segmentos, total){
+  if(!total) return '';
+  const r = 50, cx = 60, cy = 60, grosor = 18;
+  const circunferencia = 2 * Math.PI * r;
+  let acumulado = 0;
+  const conValor = segmentos.filter(s=>s.valor>0);
+  const circulos = conValor.map(s=>{
+    const pct = s.valor / total;
+    const largo = pct * circunferencia;
+    const offset = -(acumulado * circunferencia);
+    acumulado += pct;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${grosor}" stroke-dasharray="${largo} ${circunferencia}" stroke-dashoffset="${offset}"/>`;
+  }).join('');
+  const leyenda = conValor.map(s=>{
+    const pct = Math.round((s.valor/total)*100);
+    return `<div class="donut-leg-item"><span class="donut-swatch" style="background:${s.color}"></span>${escapeHtml(s.etiqueta)} · ${pct}%</div>`;
+  }).join('');
+  return `
+    <div class="donut-wrap">
+      <svg viewBox="0 0 120 120" class="donut-svg" role="img" aria-label="Distribucion por estado ACTIBID">
+        <g transform="rotate(-90 ${cx} ${cy})">${circulos}</g>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle" class="donut-center-num">${fmtNum(total)}</text>
+        <text x="${cx}" y="${cy+12}" text-anchor="middle" class="donut-center-label">con estado</text>
+      </svg>
+      <div class="donut-legend">${leyenda}</div>
+    </div>
+  `;
+}
+
+/* Colores fijos para el donut de Estado ACTIBID -- distintos a los que
+   ya usan broker/Jeffrey/Alexandra/Steven/Otros, para no mezclar el
+   significado de un color entre dos graficos distintos. Como el Excel
+   trae muchos valores de texto libre, solo los primeros 6 (los mas
+   frecuentes) tienen su propio color; el resto se agrupa en "Otros
+   estados" (gris), pero la lista de abajo del donut si muestra todos. */
+const PALETA_ESTADOS = ['var(--pink-deep)','var(--blue)','var(--green)','var(--orange)','var(--magenta)','var(--pink2)'];
+const TOP_DONUT_ESTADOS = 6;
+
+function renderEstadoActibid(d){
+  const items = d.top_estado_actibid || [];
+  const total = d.con_estado_actibid || 0;
+  if(!items.length || !total){
+    return '<div class="f"><div class="v" style="color:var(--muted);">Todavía no hay datos de "Estado ACTIBID" cargados desde el Excel.</div></div>';
+  }
+
+  const principales = items.slice(0, TOP_DONUT_ESTADOS);
+  const restoCantidad = items.slice(TOP_DONUT_ESTADOS).reduce((acc,it)=>acc+it.cantidad, 0);
+
+  const segmentosDonut = principales.map((it,i)=>({
+    valor: it.cantidad,
+    color: PALETA_ESTADOS[i % PALETA_ESTADOS.length],
+    etiqueta: it.estado,
+  }));
+  if(restoCantidad > 0){
+    segmentosDonut.push({ valor: restoCantidad, color:'var(--muted)', etiqueta:'OTROS ESTADOS' });
+  }
+
+  const listaHtml = items.map((it,i)=>{
+    const color = i < TOP_DONUT_ESTADOS ? PALETA_ESTADOS[i % PALETA_ESTADOS.length] : 'var(--muted)';
+    const pct = total ? ((it.cantidad/total)*100).toFixed(1) : '0.0';
+    return `<div class="estado-row">
+      <span class="estado-swatch" style="background:${color}"></span>
+      <span class="estado-nombre">${escapeHtml(it.estado)}</span>
+      <span class="estado-count">${fmtNum(it.cantidad)} <span class="rank-pct">(${pct}%)</span></span>
+    </div>`;
+  }).join('');
+
+  return `
+    ${renderDonutGenerico(segmentosDonut, total)}
+    <div class="estado-lista">${listaHtml}</div>
+  `;
+}
+
 function renderDashboard(d){
   const cont = document.getElementById('dash-content');
   dashboardData = d;
@@ -439,6 +515,10 @@ function renderDashboard(d){
         </div>
       </div>
       <div class="rank-list" id="dash-ranking-list"></div>
+    </div>
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado ACTIBID</div>
+      ${renderEstadoActibid(d)}
     </div>
     <div class="sec">
       <div class="stitle"><span class="stitle-icon">✉️</span>Sin broker asignado, con correo de contacto</div>

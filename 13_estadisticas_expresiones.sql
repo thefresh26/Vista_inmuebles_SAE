@@ -155,6 +155,14 @@ as $$
     'otros', (select count(*) from clasificado where not es_broker and not es_jeff and not es_ale and not es_steven),
     'sin_broker_con_mail', (select count(*) from clasificado where not es_broker and mail is not null and btrim(mail) <> ''),
     'ultima_actualizacion', (select max(created_at) from expresiones_interes),
+    'con_estado_actibid', (select count(*) from expresiones_interes where estado_actibid is not null and btrim(estado_actibid) <> ''),
+    'top_estado_actibid', (select coalesce(json_agg(t), '[]'::json) from (
+        select coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO') as estado, count(*) as cantidad
+        from expresiones_interes
+        group by coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+        order by count(*) desc
+        limit 30
+    ) t),
     'top_fuentes', (select coalesce(json_agg(t), '[]'::json) from (
         select coalesce(fuente_bruta, 'Sin dato') as analista, categoria, count(*) as cantidad
         from con_fuente
