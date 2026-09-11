@@ -143,11 +143,34 @@ as $$
     from clasificado
     where analista is not null and btrim(analista) <> ''
        or (broker is not null and btrim(broker) <> '')
+  ),
+  -- Un folio (FMI) puede tener varias expresiones de interes a lo largo
+  -- del tiempo, cada una con su propio estado_actibid (puede cambiar:
+  -- "Borrador" -> "Proxima Venta" -> "Subasta Finalizada", etc). Para el
+  -- dashboard "por folio" se cuenta cada FMI una sola vez, usando el
+  -- estado_actibid de su expresion de interes MAS RECIENTE (igual
+  -- criterio que usa buscar_folios() para la consulta individual).
+  estado_por_folio as (
+    select distinct on (upper(fmi))
+      upper(fmi) as fmi,
+      estado_actibid
+    from expresiones_interes
+    order by upper(fmi), created_at desc
   )
   select json_build_object(
     'total_expresiones', (select count(*) from expresiones_interes),
     'total_fmi_distintos', (select count(distinct fmi) from expresiones_interes),
     'total_clientes_nombrados', (select count(distinct cliente) from expresiones_interes where cliente is not null and btrim(cliente) <> ''),
+    -- FMI con expresion de interes que NO tienen ningun documento (carta de
+    -- manifestacion de intencion de compra) cargado en documentos_fmi. Pedido
+    -- por el director comercial para darle seguimiento a los que faltan.
+    'total_fmi_sin_documento', (
+      select count(distinct e.fmi)
+      from expresiones_interes e
+      where not exists (
+        select 1 from public.documentos_fmi d where upper(d.fmi) = upper(e.fmi)
+      )
+    ),
     'broker', (select count(*) from clasificado where es_broker),
     'jeff', (select count(*) from clasificado where not es_broker and es_jeff),
     'ale', (select count(*) from clasificado where not es_broker and not es_jeff and es_ale),
@@ -156,10 +179,44 @@ as $$
     'sin_broker_con_mail', (select count(*) from clasificado where not es_broker and mail is not null and btrim(mail) <> ''),
     'ultima_actualizacion', (select max(created_at) from expresiones_interes),
     'con_estado_actibid', (select count(*) from expresiones_interes where estado_actibid is not null and btrim(estado_actibid) <> ''),
+    -- Mismo desglose de estado, pero contando FOLIOS UNICOS (1.706 en vez
+    -- de las 2.395 expresiones) en vez de cada expresion de interes por
+    -- separado. Pedido por el director comercial para ver el estado real
+    -- del inventario de folios, no inflado por folios con varias
+    -- expresiones de interes.
+    'con_estado_actibid_por_folio', (select count(*) from estado_por_folio where estado_actibid is not null and btrim(estado_actibid) <> ''),
+    'top_estado_actibid_por_folio', (select coalesce(json_agg(t), '[]'::json) from (
+        select
+          case
+            when upper(btrim(estado_actibid)) = 'VENDIDO' then 'SUBASTA FINALIZADA'
+            else coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+          end as estado,
+          count(*) as cantidad
+        from estado_por_folio
+        group by
+          case
+            when upper(btrim(estado_actibid)) = 'VENDIDO' then 'SUBASTA FINALIZADA'
+            else coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+          end
+        order by count(*) desc
+        limit 30
+    ) t),
     'top_estado_actibid', (select coalesce(json_agg(t), '[]'::json) from (
-        select coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO') as estado, count(*) as cantidad
+        select
+          -- "VENDIDO" es el mismo estado que "SUBASTA FINALIZADA" (nombre
+          -- viejo/alterno usado por algunos analistas en el Excel), asi que
+          -- se agrupan juntos en vez de aparecer como filas separadas.
+          case
+            when upper(btrim(estado_actibid)) = 'VENDIDO' then 'SUBASTA FINALIZADA'
+            else coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+          end as estado,
+          count(*) as cantidad
         from expresiones_interes
-        group by coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+        group by
+          case
+            when upper(btrim(estado_actibid)) = 'VENDIDO' then 'SUBASTA FINALIZADA'
+            else coalesce(nullif(upper(btrim(estado_actibid)), ''), 'SIN DATO')
+          end
         order by count(*) desc
         limit 30
     ) t),
