@@ -389,11 +389,11 @@ function renderDonutGenerico(segmentos, total){
 const PALETA_ESTADOS = ['var(--pink-deep)','var(--blue)','var(--green)','var(--orange)','var(--magenta)','var(--pink2)'];
 const TOP_DONUT_ESTADOS = 6;
 
-function renderEstadoActibid(d){
-  const items = d.top_estado_actibid || [];
-  const total = d.con_estado_actibid || 0;
+function renderEstadoActibid(items, total){
+  items = items || [];
+  total = total || 0;
   if(!items.length || !total){
-    return '<div class="f"><div class="v" style="color:var(--muted);">Todavía no hay datos de "Estado ACTIBID" cargados desde el Excel.</div></div>';
+    return '<div class="f"><div class="v" style="color:var(--muted);">Todavía no hay datos de "Estado de Publicación" cargados desde el Excel.</div></div>';
   }
 
   const principales = items.slice(0, TOP_DONUT_ESTADOS);
@@ -430,9 +430,12 @@ function renderDashboard(d){
   const totalClasificado = (d.broker||0) + (d.jeff||0) + (d.ale||0) + (d.steven||0) + (d.otros||0);
   const pct = (n)=> totalClasificado ? Math.round((n/totalClasificado)*100) : 0;
 
+  const pctSobreFmi = (n)=> d.total_fmi_distintos ? Math.round((n/d.total_fmi_distintos)*100) : 0;
+
   const tiles = [
     { label:'Expresiones de interés (total)', value:d.total_expresiones, color:'var(--pink-deep)' },
     { label:'Folios (FMI) con expresión de interés', value:d.total_fmi_distintos, color:'var(--pink-deep)' },
+    { label:'Folios (FMI) sin documento', value:d.total_fmi_sin_documento, sub:`${pctSobreFmi(d.total_fmi_sin_documento)}% de los folios con expresión de interés`, color:'var(--magenta)' },
     { label:'Traídas por brokers', value:d.broker, sub:`${pct(d.broker)}% del total`, color:'var(--pink)' },
     { label:'Gestionadas por JEFFREY GUERRERO', value:d.jeff, sub:`${pct(d.jeff)}% del total`, color:'var(--blue)' },
     { label:'Gestionadas por ALEXANDRA BALZA', value:d.ale, sub:`${pct(d.ale)}% del total`, color:'var(--orange)' },
@@ -517,12 +520,12 @@ function renderDashboard(d){
       <div class="rank-list" id="dash-ranking-list"></div>
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado ACTIBID</div>
-      ${renderEstadoActibid(d)}
+      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación - Expresiones de interés</div>
+      ${renderEstadoActibid(d.top_estado_actibid, d.con_estado_actibid)}
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">✉️</span>Sin broker asignado, con correo de contacto</div>
-      <div class="f"><div class="v">${fmtNum(d.sin_broker_con_mail)} expresiones no mencionan un broker pero sí tienen un correo de contacto registrado — candidatas para que Alexandra les dé seguimiento directo.</div></div>
+      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación - Folios de Matrícula Inmobiliaria</div>
+      ${renderEstadoActibid(d.top_estado_actibid_por_folio, d.con_estado_actibid_por_folio)}
     </div>
     <div class="f" style="margin-top:4px;">
       <div class="v" style="color:var(--muted);font-size:11px;">La clasificación Broker / Jeffrey / Alexandra se calcula automáticamente a partir de la columna "broker" y del texto libre que llega del Excel — puede haber casos mal clasificados si el texto no sigue el formato habitual. Los nombres del ranking se agrupan y limpian de notas sueltas para que se lean mejor.</div>
@@ -825,7 +828,12 @@ function dropdownInteres(total){
    se vea uniforme con el resto de la tabla; sin dato -> "Sin dato". */
 function estadoActibidHtml(estado){
   if(nul(estado)) return '<span class="null">Sin dato</span>';
-  return `<span class="chip cb">${esc(String(estado).trim().toUpperCase())}</span>`;
+  // "VENDIDO" es el mismo estado que "SUBASTA FINALIZADA" (nombre viejo/
+  // alterno usado por algunos analistas en el Excel) -- se muestran igual
+  // para que sea consistente con la sección Estado ACTIBID del dashboard.
+  let texto = String(estado).trim().toUpperCase();
+  if(texto === 'VENDIDO') texto = 'SUBASTA FINALIZADA';
+  return `<span class="chip cb">${esc(texto)}</span>`;
 }
 
 /* Uniformidad de datos: el FMI siempre se muestra en mayúsculas y sin
@@ -932,7 +940,7 @@ async function buscar(){
             <th>Unidad</th>
             <th>Enlace</th>
             <th>Expresión de Interés</th>
-            <th>Estado ACTIBID</th>
+            <th>Estado de Publicación</th>
             <th>Documento</th>
           </tr>
         </thead>
