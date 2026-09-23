@@ -36,7 +36,8 @@
 <div class="topbar" id="topbar" style="display:none;">
   <div class="tabs" id="tabs">
     <button class="tab-btn active" id="tab-btn-consultar" onclick="mostrarTab('consultar')">Consultar</button>
-    <button class="tab-btn" id="tab-btn-dashboard" onclick="mostrarTab('dashboard')" style="display:none;">Dashboard</button>
+    <button class="tab-btn" id="tab-btn-dashboard" onclick="mostrarTab('dashboard')" style="display:none;">Dashboard SAE</button>
+    <button class="tab-btn" id="tab-btn-arriendos" onclick="mostrarTab('arriendos')" style="display:none;">Dashboard Arriendos</button>
     <button class="tab-btn" id="tab-btn-admin" onclick="mostrarTab('administracion')" style="display:none;">Administración</button>
   </div>
   <button id="logout-btn" class="logout-btn" onclick="cerrarSesionManual()">Cerrar sesión</button>
@@ -76,6 +77,16 @@
       <div class="login-title" style="margin-bottom:0;">Dashboard de Expresiones de Interés</div>
     </div>
     <div id="dash-content"><span class="null">Cargando estadísticas…</span></div>
+  </div>
+</div>
+
+<!-- PESTAÑA: DASHBOARD DE ARRIENDOS (portafolio de territoriales, admin y comercial) -->
+<div id="tab-arriendos" class="tab-panel">
+  <div class="admin-page">
+    <div class="admin-head">
+      <div class="login-title" style="margin-bottom:0;">Dashboard de Arriendos</div>
+    </div>
+    <div id="arriendos-content"><span class="null">Cargando estadísticas…</span></div>
   </div>
 </div>
 

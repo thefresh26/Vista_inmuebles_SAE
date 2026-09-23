@@ -66,6 +66,7 @@ function mostrarBarraSesion(){
   document.getElementById('topbar').style.display = 'flex';
   if(currentRole==='admin') document.getElementById('tab-btn-admin').style.display = 'inline-block';
   if(currentRole==='comercial' || currentRole==='admin') document.getElementById('tab-btn-dashboard').style.display = 'inline-block';
+  if(currentRole==='comercial' || currentRole==='admin') document.getElementById('tab-btn-arriendos').style.display = 'inline-block';
 }
 
 /* ── CIERRE DE SESIÓN AUTOMÁTICO POR INACTIVIDAD ──
@@ -187,7 +188,7 @@ function adminMsg(texto, tipo){
    === 'admin'); aun así, se vuelve a validar en el servidor con cada
    acción, así que no pasa nada si alguien fuerza esta función a mano. */
 function mostrarTab(nombre){
-  ['consultar','dashboard','administracion'].forEach(t=>{
+  ['consultar','dashboard','arriendos','administracion'].forEach(t=>{
     document.getElementById('tab-'+t).classList.toggle('active', t===nombre);
     document.getElementById('tab-btn-'+(t==='administracion'?'admin':t)).classList.toggle('active', t===nombre);
   });
@@ -198,6 +199,9 @@ function mostrarTab(nombre){
   }
   if(nombre==='dashboard'){
     cargarDashboard();
+  }
+  if(nombre==='arriendos'){
+    cargarArriendos();
   }
 }
 
@@ -285,6 +289,81 @@ async function cargarDashboard(){
   }catch(e){
     cont.innerHTML = `<div id="admin-msg" class="error" style="display:block;">No se pudieron cargar las estadísticas: ${e.message||e}</div>`;
   }
+}
+
+/* ── DASHBOARD DE ARRIENDOS ──
+   Portafolio de territoriales (archivo "Portafolio final de
+   territoriales.xlsx", cargado vía actualizacion_arriendo/actualizar_arriendo.py).
+   A diferencia del dashboard de expresiones de interés, esta tabla NO
+   tiene quién se interesó (no hay cliente/analista/broker) — es el
+   catálogo de inmuebles disponibles para arriendo con su territorial,
+   ubicación y valor estimado. Reutiliza los mismos componentes visuales
+   (tiles animados, donut genérico, listas con porcentaje) que ya existen
+   para el dashboard de expresiones de interés. */
+let arriendosCargado = false;
+let arriendosData = null;
+
+async function cargarArriendos(){
+  const cont = document.getElementById('arriendos-content');
+  if(arriendosCargado) return;
+  cont.innerHTML = '<span class="null">Cargando estadísticas…</span>';
+  try{
+    const { data, error } = await supabaseClient.rpc('estadisticas_arriendos');
+    if(error) throw error;
+    arriendosCargado = true;
+    arriendosData = data;
+    renderArriendos(data);
+  }catch(e){
+    cont.innerHTML = `<div id="admin-msg" class="error" style="display:block;">No se pudieron cargar las estadísticas: ${e.message||e}</div>`;
+  }
+}
+
+function renderArriendos(d){
+  const cont = document.getElementById('arriendos-content');
+
+  const ultimaSyncHtml = (currentRole === 'admin' && d.ultima_actualizacion)
+    ? `<div class="dash-sync-info">Última sincronización con el Excel: ${new Date(d.ultima_actualizacion).toLocaleString('es-CO',{dateStyle:'medium',timeStyle:'short'})}</div>`
+    : '';
+
+  const pctValor = d.total_folios ? Math.round((d.con_valor_estimado/d.total_folios)*100) : 0;
+  const pctAvaluo = d.total_folios ? Math.round((d.con_avaluo/d.total_folios)*100) : 0;
+
+  const tiles = [
+    { label:'Folios en el portafolio de arriendo', value:d.total_folios, color:'var(--pink-deep)' },
+    { label:'Con valor de arriendo estimado', value:d.con_valor_estimado, sub:`${pctValor}% del total`, color:'var(--green)' },
+    { label:'Sin valor de arriendo estimado', value:d.sin_valor_estimado, sub:`${100-pctValor}% del total`, color:'var(--magenta)' },
+    { label:'Con avalúo registrado', value:d.con_avaluo, sub:`${pctAvaluo}% del total`, color:'var(--blue)' },
+  ];
+
+  const tilesHtml = tiles.map(t=>`
+    <div class="stat-tile" style="--tile-color:${t.color}">
+      <div class="stat-value" data-count-to="${t.value||0}">0</div>
+      <div class="stat-label">${t.label}</div>
+      ${t.sub?`<div class="stat-sub">${t.sub}</div>`:''}
+    </div>
+  `).join('');
+
+  cont.innerHTML = `
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">📊</span>Resumen general</div>
+      ${ultimaSyncHtml}
+      <div class="stat-grid">${tilesHtml}</div>
+    </div>
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">🗺️</span>Folios por Territorial</div>
+      ${renderEstadoActibid(d.top_territorial, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.')}
+    </div>
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">🏠</span>Folios por Tipo de Inmueble</div>
+      ${renderEstadoActibid(d.top_tipo_inmueble, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.')}
+    </div>
+    <div class="sec">
+      <div class="stitle"><span class="stitle-icon">📍</span>Folios por Departamento</div>
+      ${renderEstadoActibid(d.top_departamento, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.')}
+    </div>
+  `;
+
+  animarContadores(cont);
 }
 
 /* Anima los numeros de las tarjetas de resumen subiendo desde 0 hasta el
@@ -389,11 +468,11 @@ function renderDonutGenerico(segmentos, total){
 const PALETA_ESTADOS = ['var(--pink-deep)','var(--blue)','var(--green)','var(--orange)','var(--magenta)','var(--pink2)'];
 const TOP_DONUT_ESTADOS = 6;
 
-function renderEstadoActibid(items, total){
+function renderEstadoActibid(items, total, mensajeVacio){
   items = items || [];
   total = total || 0;
   if(!items.length || !total){
-    return '<div class="f"><div class="v" style="color:var(--muted);">Todavía no hay datos de "Estado de Publicación" cargados desde el Excel.</div></div>';
+    return `<div class="f"><div class="v" style="color:var(--muted);">${mensajeVacio || 'Todavía no hay datos de "Estado de Publicación" cargados desde el Excel.'}</div></div>`;
   }
 
   const principales = items.slice(0, TOP_DONUT_ESTADOS);
