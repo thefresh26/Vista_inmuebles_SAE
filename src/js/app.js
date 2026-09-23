@@ -215,6 +215,17 @@ function mostrarTab(nombre){
    analista (JEFFREY GUERRERO o ALEXANDRA BALZA). Los casos que no
    calzan en ninguna de las tres categorías (otro nombre de analista,
    texto vacío, etc.) quedan en "Otros / sin clasificar". */
+/* Iconos de trazo (estilo Lucide) para los titulos de seccion: reemplazan
+   los emoji para que se vean iguales en Windows, Mac y celular. */
+const ICONO = {
+  chart:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>',
+  users:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
+  tag:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2H2v10l9.3 9.3a1 1 0 0 0 1.4 0l8.6-8.6a1 1 0 0 0 0-1.4Z"/><circle cx="7" cy="7" r="1.5"/></svg>',
+  map:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 3 3 6v15l6-3 6 3 6-3V3l-6 3-6-3z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>',
+  home:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>'
+};
+
 let dashboardCargado = false;
 let dashboardData = null;      // último JSON traído de Supabase (para recalcular al filtrar)
 let dashboardFuentes = [];     // top_fuentes ya limpio/agrupado por nombre
@@ -345,25 +356,52 @@ function renderArriendos(d){
 
   cont.innerHTML = `
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">📊</span>Resumen general</div>
+      <div class="stitle"><span class="stitle-icon">${ICONO.chart}</span>Resumen general</div>
       ${ultimaSyncHtml}
       <div class="stat-grid">${tilesHtml}</div>
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🗺️</span>Folios por Territorial</div>
-      ${renderEstadoActibid(d.top_territorial, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.')}
+      <div class="stitle"><span class="stitle-icon">${ICONO.map}</span>Folios por Territorial</div>
+      ${renderEstadoActibid(d.top_territorial, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.', 'folios')}
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏠</span>Folios por Tipo de Inmueble</div>
-      ${renderEstadoActibid(d.top_tipo_inmueble, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.')}
+      <div class="stitle"><span class="stitle-icon">${ICONO.home}</span>Folios por Tipo de Inmueble</div>
+      ${renderEstadoActibid(d.top_tipo_inmueble, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.', 'folios')}
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">📍</span>Folios por Departamento</div>
-      ${renderEstadoActibid(d.top_departamento, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.')}
+      <div class="stitle"><span class="stitle-icon">${ICONO.pin}</span>Folios por Departamento</div>
+      ${renderEstadoActibid(d.top_departamento, d.total_folios, 'Todavía no hay datos de portafolio de arriendo cargados desde el Excel.', 'folios')}
     </div>
   `;
 
   animarContadores(cont);
+  animarDashboard(cont);
+}
+
+/* Movimiento del dashboard (solo visual, no toca datos):
+   - escalona la entrada de secciones, tarjetas y filas (--i)
+   - dibuja los segmentos de los donut desde 0 hasta su valor
+   - al pasar el cursor por la leyenda o un segmento, resalta ese segmento */
+function animarDashboard(scope){
+  const root = scope || document;
+  root.querySelectorAll(':scope > .sec').forEach((el,i)=>el.style.setProperty('--i', i));
+  root.querySelectorAll('.stat-grid').forEach(g=>g.querySelectorAll('.stat-tile').forEach((el,i)=>el.style.setProperty('--i', i)));
+  root.querySelectorAll('.estado-lista').forEach(l=>l.querySelectorAll('.estado-row').forEach((el,i)=>el.style.setProperty('--i', Math.min(i,10))));
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{
+    root.querySelectorAll('.donut-svg circle.seg[data-dash]').forEach(c=>{ c.style.strokeDasharray = c.getAttribute('data-dash'); });
+  }));
+  root.querySelectorAll('.donut-wrap').forEach(dw=>{
+    const w = dw.closest('.estado-layout') || dw;
+    const marcar = (i)=>{
+      w.classList.toggle('hovering', i!==null);
+      dw.classList.toggle('hovering', i!==null);
+      w.querySelectorAll('[data-i]').forEach(el=>el.classList.toggle('on', el.getAttribute('data-i')===i));
+    };
+    w.querySelectorAll('[data-i]').forEach(el=>{
+      el.addEventListener('mouseenter', ()=>marcar(el.getAttribute('data-i')));
+      el.addEventListener('mouseleave', ()=>marcar(null));
+    });
+  });
 }
 
 /* Anima los numeros de las tarjetas de resumen subiendo desde 0 hasta el
@@ -371,9 +409,11 @@ function renderArriendos(d){
    se muestra siempre es exactamente el mismo dato que llega de Supabase,
    esto no recalcula ni modifica nada. */
 function animarContadores(scope){
-  const els = (scope||document).querySelectorAll('.stat-value[data-count-to]');
+  const els = (scope||document).querySelectorAll('[data-count-to]');
+  const reducido = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
   els.forEach(el=>{
     const destino = Number(el.getAttribute('data-count-to'))||0;
+    if(reducido){ el.textContent = fmtNum(destino); return; }
     const duracion = 700;
     const inicio = performance.now();
     function paso(ahora){
@@ -404,22 +444,23 @@ function renderDonut(d, totalClasificado){
   const circunferencia = 2 * Math.PI * r;
   let acumulado = 0;
   const conValor = segmentos.filter(s=>s.valor>0);
-  const circulos = conValor.map(s=>{
+  const circulos = conValor.map((s,i)=>{
     const pct = s.valor / totalClasificado;
     const largo = pct * circunferencia;
     const offset = -(acumulado * circunferencia);
     acumulado += pct;
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${grosor}" stroke-dasharray="${largo} ${circunferencia}" stroke-dashoffset="${offset}"/>`;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${grosor}" class="seg" data-i="${i}" data-dash="${largo} ${circunferencia}" stroke-dasharray="0 ${circunferencia}" stroke-dashoffset="${offset}"/>`;
   }).join('');
-  const leyenda = conValor.map(s=>{
+  const leyenda = conValor.map((s,i)=>{
     const pct = Math.round((s.valor/totalClasificado)*100);
-    return `<div class="donut-leg-item"><span class="donut-swatch" style="background:${s.color}"></span>${s.etiqueta} · ${pct}%</div>`;
+    return `<div class="donut-leg-item" data-i="${i}"><span class="donut-swatch" style="background:${s.color}"></span>${s.etiqueta} · ${pct}%</div>`;
   }).join('');
   return `
     <div class="donut-wrap">
       <svg viewBox="0 0 120 120" class="donut-svg" role="img" aria-label="Distribucion de expresiones de interes por broker y analista">
+        <circle class="donut-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${grosor}"/>
         <g transform="rotate(-90 ${cx} ${cy})">${circulos}</g>
-        <text x="${cx}" y="${cy-4}" text-anchor="middle" class="donut-center-num">${fmtNum(totalClasificado)}</text>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle" class="donut-center-num" data-count-to="${totalClasificado}">0</text>
         <text x="${cx}" y="${cy+12}" text-anchor="middle" class="donut-center-label">clasificadas</text>
       </svg>
       <div class="donut-legend">${leyenda}</div>
@@ -430,29 +471,30 @@ function renderDonut(d, totalClasificado){
 /* Version generica del donut: recibe los segmentos ya armados
    ({valor,color,etiqueta}) en vez de calcularlos a partir de las
    categorias fijas de broker/analista. La usa renderEstadoActibid(). */
-function renderDonutGenerico(segmentos, total){
+function renderDonutGenerico(segmentos, total, etiquetaCentro){
   if(!total) return '';
   const r = 50, cx = 60, cy = 60, grosor = 18;
   const circunferencia = 2 * Math.PI * r;
   let acumulado = 0;
   const conValor = segmentos.filter(s=>s.valor>0);
-  const circulos = conValor.map(s=>{
+  const circulos = conValor.map((s,i)=>{
     const pct = s.valor / total;
     const largo = pct * circunferencia;
     const offset = -(acumulado * circunferencia);
     acumulado += pct;
-    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${grosor}" stroke-dasharray="${largo} ${circunferencia}" stroke-dashoffset="${offset}"/>`;
+    return `<circle cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke="${s.color}" stroke-width="${grosor}" class="seg" data-i="${i}" data-dash="${largo} ${circunferencia}" stroke-dasharray="0 ${circunferencia}" stroke-dashoffset="${offset}"/>`;
   }).join('');
-  const leyenda = conValor.map(s=>{
+  const leyenda = conValor.map((s,i)=>{
     const pct = Math.round((s.valor/total)*100);
-    return `<div class="donut-leg-item"><span class="donut-swatch" style="background:${s.color}"></span>${escapeHtml(s.etiqueta)} · ${pct}%</div>`;
+    return `<div class="donut-leg-item" data-i="${i}"><span class="donut-swatch" style="background:${s.color}"></span>${escapeHtml(s.etiqueta)} · ${pct}%</div>`;
   }).join('');
   return `
     <div class="donut-wrap">
       <svg viewBox="0 0 120 120" class="donut-svg" role="img" aria-label="Distribucion por estado ACTIBID">
+        <circle class="donut-track" cx="${cx}" cy="${cy}" r="${r}" fill="none" stroke-width="${grosor}"/>
         <g transform="rotate(-90 ${cx} ${cy})">${circulos}</g>
-        <text x="${cx}" y="${cy-4}" text-anchor="middle" class="donut-center-num">${fmtNum(total)}</text>
-        <text x="${cx}" y="${cy+12}" text-anchor="middle" class="donut-center-label">con estado</text>
+        <text x="${cx}" y="${cy-4}" text-anchor="middle" class="donut-center-num" data-count-to="${total}">0</text>
+        <text x="${cx}" y="${cy+12}" text-anchor="middle" class="donut-center-label">${etiquetaCentro || 'con estado'}</text>
       </svg>
       <div class="donut-legend">${leyenda}</div>
     </div>
@@ -468,7 +510,7 @@ function renderDonutGenerico(segmentos, total){
 const PALETA_ESTADOS = ['var(--pink-deep)','var(--blue)','var(--green)','var(--orange)','var(--magenta)','var(--pink2)'];
 const TOP_DONUT_ESTADOS = 6;
 
-function renderEstadoActibid(items, total, mensajeVacio){
+function renderEstadoActibid(items, total, mensajeVacio, etiquetaCentro){
   items = items || [];
   total = total || 0;
   if(!items.length || !total){
@@ -490,7 +532,7 @@ function renderEstadoActibid(items, total, mensajeVacio){
   const listaHtml = items.map((it,i)=>{
     const color = i < TOP_DONUT_ESTADOS ? PALETA_ESTADOS[i % PALETA_ESTADOS.length] : 'var(--muted)';
     const pct = total ? ((it.cantidad/total)*100).toFixed(1) : '0.0';
-    return `<div class="estado-row">
+    return `<div class="estado-row" data-i="${Math.min(i, TOP_DONUT_ESTADOS)}" style="--pct:${pct}%">
       <span class="estado-swatch" style="background:${color}"></span>
       <span class="estado-nombre">${escapeHtml(it.estado)}</span>
       <span class="estado-count">${fmtNum(it.cantidad)} <span class="rank-pct">(${pct}%)</span></span>
@@ -498,8 +540,10 @@ function renderEstadoActibid(items, total, mensajeVacio){
   }).join('');
 
   return `
-    ${renderDonutGenerico(segmentosDonut, total)}
-    <div class="estado-lista">${listaHtml}</div>
+    <div class="estado-layout">
+      ${renderDonutGenerico(segmentosDonut, total, etiquetaCentro)}
+      <div class="estado-lista">${listaHtml}</div>
+    </div>
   `;
 }
 
@@ -578,12 +622,12 @@ function renderDashboard(d){
 
   cont.innerHTML = `
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">📊</span>Resumen general</div>
+      <div class="stitle"><span class="stitle-icon">${ICONO.chart}</span>Resumen general</div>
       ${ultimaSyncHtml}
       <div class="stat-grid">${tilesHtml}</div>
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏆</span>Expresiones de interés · Analista / Broker</div>
+      <div class="stitle"><span class="stitle-icon">${ICONO.users}</span>Expresiones de interés · Analista / Broker</div>
       ${renderDonut(d, totalClasificado)}
       <div class="filtro-bar">
         <div class="filtro-chips">${chipsHtml}</div>
@@ -599,11 +643,11 @@ function renderDashboard(d){
       <div class="rank-list" id="dash-ranking-list"></div>
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación - Expresiones de interés</div>
+      <div class="stitle"><span class="stitle-icon">${ICONO.tag}</span>Estado de Publicación - Expresiones de interés</div>
       ${renderEstadoActibid(d.top_estado_actibid, d.con_estado_actibid)}
     </div>
     <div class="sec">
-      <div class="stitle"><span class="stitle-icon">🏷️</span>Estado de Publicación - Folios de Matrícula Inmobiliaria</div>
+      <div class="stitle"><span class="stitle-icon">${ICONO.tag}</span>Estado de Publicación - Folios de Matrícula Inmobiliaria</div>
       ${renderEstadoActibid(d.top_estado_actibid_por_folio, d.con_estado_actibid_por_folio)}
     </div>
     <div class="f" style="margin-top:4px;">
@@ -612,6 +656,7 @@ function renderDashboard(d){
   `;
 
   animarContadores(cont);
+  animarDashboard(cont);
   renderRanking();
 }
 
@@ -645,12 +690,12 @@ function renderRanking(){
   const maxFuente = Math.max(1, ...filtradas.map(f=>f.cantidad));
   const totalGeneral = d.total_expresiones || 0;
 
-  const rankingHtml = filtradas.map(f=>{
+  const rankingHtml = filtradas.map((f,idx)=>{
     const color = CATEGORIA_COLOR[f.categoria] || 'var(--pink-deep)';
     const widthPct = Math.max(4, Math.round((f.cantidad/maxFuente)*100));
     const pctTotal = totalGeneral ? ((f.cantidad/totalGeneral)*100).toFixed(1) : '0.0';
     return `
-      <div class="rank-row">
+      <div class="rank-row" style="--i:${Math.min(idx,10)}">
         <div class="rank-label" title="${escapeHtml(f.original.join(' · '))}">${escapeHtml(f.nombre)}</div>
         <div class="rank-bar-track"><div class="rank-bar-fill" data-width="${widthPct}" style="width:0%;background:${color}"></div></div>
         <div class="rank-count">${fmtNum(f.cantidad)} <span class="rank-pct">(${pctTotal}%)</span></div>
